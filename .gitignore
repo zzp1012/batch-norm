@@ -1,0 +1,14 @@
+# ignore data/
+data/
+# ignore outs/
+outs/
+# ignore .png
+*.png
+# ignore __pycache__
+__pycache__/
+# ignore model
+model/
+# ignore .vscode
+.vscode/
+# ignore temp-run.sh
+*.sh
