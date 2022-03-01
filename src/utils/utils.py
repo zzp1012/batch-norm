@@ -114,3 +114,23 @@ def save_current_src(save_path: str,
     logger = get_logger(__name__)
     logger.info("save the current src")
     os.system("cp -r {} {}".format(src_path, save_path))
+
+
+def update_dict(src: dict, 
+                dst: dict) -> dict:
+    """update the dict.
+    Args:
+        src (dict): the source dict.
+        dst (dict): the target dict.
+    Returns:
+        dst (dict): the updated dict.
+    """
+    for key, value in src.items():
+        if key in dst.keys():
+            if isinstance(src[key], list) and isinstance(dst[key], list):
+                dst[key].extend(src[key])
+            else:
+                raise ValueError(f"The type of dst/src[{key}] is not list")
+        else:
+            dst[key] = value
+    return dst

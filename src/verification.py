@@ -2,11 +2,13 @@ import os
 import argparse
 import torch
 import torch.nn as nn
+import numpy as np
+import pandas as pd
 from typing import NoReturn
 
 # import internal libs
 from utils import set_logger, get_logger, set_seed, set_device, \
-    log_settings, save_current_src
+    log_settings, save_current_src, update_dict
 from config import DATE, MOMENT, SRC_PATH
 
 # define the forward pass of the network
@@ -80,25 +82,59 @@ def train(device: torch.device,
     logger = get_logger("train")
     if not os.path.exists(save_path):
         os.makedirs(save_path)
+    
     # put model and input on device
     model = model.to(device)
     inputs = inputs.to(device)
-    # set the model to train mode
-    model.train()
+    
     # define the optimizer
     optimizer = torch.optim.SGD(model.parameters(), lr = lr)
+    
+    # define hook to extract the intermediate featuremap's gradients
+    x_grads = []
+    def get_grads(module, grad_input, grad_output):
+        x_grads.append(grad_output[0].clone().detach())     
+    hook = model.main[0].register_backward_hook(get_grads)
+
+    # initialize the res_dict
+    total_res_dict = {}
+    # set the model to train mode
+    model.train()
     # define the number of epochs
     for epoch in range(epochs):
         # forward pass
         y = model(inputs)
-        # compute the loss
         loss = loss_fn(y)
+        
         # backward pass
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        
         # print the loss
         logger.info("epoch: {}, loss: {}".format(epoch, loss.item()))
+
+        # update the res_dict
+        res_dict = {
+            "epoch": [epoch],
+            "loss": [loss.item()],
+        }
+        total_res_dict = update_dict(src = res_dict,
+                                     dst = total_res_dict)
+
+        # save the intermediate featuremap's gradients
+        x_grad = x_grads[0].detach().cpu().numpy()
+        np.save(os.path.join(save_path, f"x_grad_{epoch}.npy"), x_grad)
+
+        # save the model
+        torch.save(model.state_dict(), os.path.join(save_path, f"model_{epoch}.pth"))
+    # remove the hook
+    hook.remove()
+    # save the inputs
+    torch.save(inputs, os.path.join(save_path, "inputs.pt"))
+    # save the res_dict
+    res_df = pd.DataFrame(total_res_dict)
+    res_df.to_csv(os.path.join(save_path, "train.csv"), index = False)
 
 
 # generate random tensor, called Z of shape (n, d)
