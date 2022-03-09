@@ -144,9 +144,9 @@ def generate_Z(n: int,
                high: int = 10):
     """generate random tensor, called Z of shape (n, d)"""
     logger = get_logger("generate_Z")
-    Z = torch.randint(low, high, size = (n, d)).float()
+    Z = torch.rand(size = (n, d)) * (high - low) + low
     logger.info(f"Z shape: {Z.shape}; max: {Z.max()}; min: {Z.min()}")
-    return Z
+    return Z.float()
 
 
 def add_args() -> argparse.Namespace:
@@ -166,7 +166,7 @@ def add_args() -> argparse.Namespace:
                         help='the path of saving results.')
     parser.add_argument("-n", '--sample_num', default=100, type=int,
                         help="set the number of inputs.")
-    parser.add_argument("-d", '--input_dim', default=1, type=int,
+    parser.add_argument("-d", '--input_dim', default=10, type=int,
                         help="set the dimension of inputs.")
     parser.add_argument("-e", '--epochs', default=10, type=int,
                         help="set epoch number")
