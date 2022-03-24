@@ -56,7 +56,7 @@ def loss_fn(y: torch.Tensor) -> torch.Tensor:
         loss (tensor): scalar
     """
     # loss = 1 / n * sum(1 + 2y + 3y^2 + 4y^3 + 5y^4)
-    losses =  3 * torch.pow(y, 2) # (n, 1)
+    losses =  1 + 2 * y + 3 * torch.pow(y, 2) # (n, 1)
     return losses
 
 
@@ -67,12 +67,12 @@ def train(device: torch.device,
           epochs: float,
           lr: float,
           bs: int,
-          isLearn: bool,) -> NoReturn:
+          isLearn: bool,) -> Net:
     """
     Args:
-        device (torch.device): the device to train the model.
+        device (torch.device): GPU
         save_path (str): the path to save the model.
-        model (Net): the model
+        model (Net): the model, already on device.
         Z (tensor): the input
         epochs (float): number of epochs
         lr (float): learning rate
@@ -80,7 +80,7 @@ def train(device: torch.device,
         isLearn (bool): if the learning the learnable parameters in BN.
     
     Return:
-        None
+        model (Net): the trained model.
     """
     logger = get_logger("train")
     if not os.path.exists(save_path):
@@ -89,9 +89,6 @@ def train(device: torch.device,
     # assertion
     assert len(Z.shape) == 2, "the shape of Z should be (n, d)"
     N, D = Z.shape
-    
-    # put model and input on device
-    model = model.to(device)
 
     # define if the model's BN's learnable parameters is learnable
     if not isLearn:
@@ -155,6 +152,59 @@ def train(device: torch.device,
     # save the res_dict
     res_df = pd.DataFrame(total_res_dict)
     res_df.to_csv(os.path.join(save_path, "train.csv"), index = False)
+
+    return model
+
+
+def test(device: torch.device,
+         save_path: str,
+         model: Net,
+         Z: torch.Tensor,
+         bs: int) -> NoReturn:
+    """test the trained model
+
+    Args:
+        device (torch.device): GPU
+        save_path (str): the path to save the model.
+        model (Net): the model, already on device.
+        Z (tensor): the input
+        bs (int): batch size
+    
+    Return:
+        None
+    """
+    logger = get_logger("test")
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+
+    # assertion
+    assert len(Z.shape) == 2, "the shape of Z should be (n, d)"
+    N, D = Z.shape
+
+    # set the model to eval mode
+    model.eval()
+    # define the number of batches
+    batches = np.array_split(np.arange(N), round(N / bs))
+    # define the loss
+    loss_lst = []
+    for batch in batches:
+        # to device
+        z_bs = Z[batch].to(device)
+        # forward
+        y_bs = model(z_bs)
+        # loss
+        losses = loss_fn(y_bs)
+
+        # record the loss
+        loss_lst.extend(losses.detach().cpu().numpy().reshape(-1))
+    
+    # calculate the total loss
+    total_loss = np.mean(loss_lst)
+    # print the loss
+    logger.info("loss: {}".format(total_loss))
+
+    # store the loss_lst
+    np.save(os.path.join(save_path, "loss_lst.npy"), np.array(loss_lst))
 
 
 # generate random tensor, called Z of shape (n, d)
@@ -261,17 +311,27 @@ def main():
     # define the model
     logger.info("#########define the model....")
     model = Net(d = args.input_dim, isBN = args.is_bn)
+    model = model.to(args.device)
     
     # train the model
     logger.info("#########training the model....")
-    train(device = args.device,
-          save_path = os.path.join(args.save_path, "train"),
-          model = model,
-          Z = Z_train,
-          epochs = args.epochs,
-          lr = args.lr,
-          bs = args.bs,
-          isLearn = args.is_learn)
+    model = train(device = args.device,
+                  save_path = os.path.join(args.save_path, "train"),
+                  model = model,
+                  Z = Z_train,
+                  epochs = args.epochs,
+                  lr = args.lr,
+                  bs = args.bs,
+                  isLearn = args.is_learn)
+
+    # test the model
+    logger.info("#########testing the model....")
+    test(device = args.device,
+         save_path = os.path.join(args.save_path, "test"),
+         model = model,
+         Z = Z_test,
+         bs = args.bs)
+
 
 if __name__ == "__main__":
     main()
