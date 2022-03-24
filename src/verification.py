@@ -63,7 +63,7 @@ def loss_fn(y: torch.Tensor) -> torch.Tensor:
 def train(device: torch.device,
           save_path: str,
           model: Net,
-          inputs: torch.Tensor,
+          Z: torch.Tensor,
           epochs: float,
           lr: float,
           bs: int,
@@ -73,7 +73,7 @@ def train(device: torch.device,
         device (torch.device): the device to train the model.
         save_path (str): the path to save the model.
         model (Net): the model
-        inputs (tensor): the input
+        Z (tensor): the input
         epochs (float): number of epochs
         lr (float): learning rate
         bs (int): batch size
@@ -87,8 +87,8 @@ def train(device: torch.device,
         os.makedirs(save_path)
 
     # assertion
-    assert len(inputs.shape) == 2, "the shape of inputs should be (n, d)"
-    N, D = inputs.shape
+    assert len(Z.shape) == 2, "the shape of Z should be (n, d)"
+    N, D = Z.shape
     
     # put model and input on device
     model = model.to(device)
@@ -120,7 +120,7 @@ def train(device: torch.device,
         loss_lst = []
         for batch in batches:
             # to device
-            z_bs = inputs[batch].to(device)
+            z_bs = Z[batch].to(device)
             # forward
             y_bs = model(z_bs)
             # loss
@@ -151,7 +151,7 @@ def train(device: torch.device,
         torch.save(model.state_dict(), os.path.join(save_path, f"model_{epoch}.pth"))
    
     # save the inputs
-    torch.save(inputs, os.path.join(save_path, "inputs.pt"))
+    torch.save(Z, os.path.join(save_path, "Z.pt"))
     # save the res_dict
     res_df = pd.DataFrame(total_res_dict)
     res_df.to_csv(os.path.join(save_path, "train.csv"), index = False)
@@ -246,10 +246,17 @@ def main():
                      src_path = SRC_PATH)
 
     # generate the inputs
-    logger.info("#########generating inputs....")
-    inputs = generate_Z(n = args.sample_num, 
+    logger.info("#########generating train set....")
+    Z_train = generate_Z(n = args.sample_num, 
+                         d = args.input_dim,
+                         seed = args.seed) # the data on cpu now.
+    
+    logger.info("#########generating test set....")
+    Z_test = generate_Z(n = args.sample_num,
                         d = args.input_dim,
-                        seed = args.seed) # the data on cpu now.
+                        seed = (args.seed+1) ** 2,
+                        low = -100,
+                        high = 100)
     
     # define the model
     logger.info("#########define the model....")
@@ -258,9 +265,9 @@ def main():
     # train the model
     logger.info("#########training the model....")
     train(device = args.device,
-          save_path = os.path.join(args.save_path, "exp"),
+          save_path = os.path.join(args.save_path, "train"),
           model = model,
-          inputs = inputs,
+          Z = Z_train,
           epochs = args.epochs,
           lr = args.lr,
           bs = args.bs,
