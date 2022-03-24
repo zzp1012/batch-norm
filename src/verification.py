@@ -56,9 +56,8 @@ def loss_fn(y: torch.Tensor) -> torch.Tensor:
         loss (tensor): scalar
     """
     # loss = 1 / n * sum(1 + 2y + 3y^2 + 4y^3 + 5y^4)
-    losses = 1 + 2 * y + 3 * torch.pow(y, 2) + 4 * torch.pow(y, 3) + 5 * torch.pow(y, 4)
-    loss = torch.mean(losses)
-    return loss
+    losses =  3 * torch.pow(y, 2) # (n, 1)
+    return losses
 
 
 def train(device: torch.device,
@@ -66,7 +65,9 @@ def train(device: torch.device,
           model: Net,
           inputs: torch.Tensor,
           epochs: float,
-          lr: float) -> NoReturn:
+          lr: float,
+          bs: int,
+          isLearn: bool,) -> NoReturn:
     """
     Args:
         device (torch.device): the device to train the model.
@@ -75,6 +76,8 @@ def train(device: torch.device,
         inputs (tensor): the input
         epochs (float): number of epochs
         lr (float): learning rate
+        bs (int): batch size
+        isLearn (bool): if the learning the learnable parameters in BN.
     
     Return:
         None
@@ -82,19 +85,24 @@ def train(device: torch.device,
     logger = get_logger("train")
     if not os.path.exists(save_path):
         os.makedirs(save_path)
+
+    # assertion
+    assert len(inputs.shape) == 2, "the shape of inputs should be (n, d)"
+    N, D = inputs.shape
     
     # put model and input on device
     model = model.to(device)
-    inputs = inputs.to(device)
+
+    # define if the model's BN's learnable parameters is learnable
+    if not isLearn:
+        model.main[1].weight.requires_grad = False
+        model.main[1].bias.requires_grad = False
+    else:
+        model.main[1].weight.requires_grad = True
+        model.main[1].bias.requires_grad = True
     
     # define the optimizer
-    optimizer = torch.optim.SGD(model.parameters(), lr = lr)
-    
-    # define hook to extract the intermediate featuremap's gradients
-    x_grads = []
-    def get_grads(module, grad_input, grad_output):
-        x_grads.append(grad_output[0].clone().detach())     
-    hook = model.main[0].register_backward_hook(get_grads)
+    optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr = lr)
 
     # initialize the res_dict
     total_res_dict = {}
@@ -102,34 +110,46 @@ def train(device: torch.device,
     model.train()
     # define the number of epochs
     for epoch in range(epochs):
-        # forward pass
-        y = model(inputs)
-        loss = loss_fn(y)
-        
-        # backward pass
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        
+        # shuffle
+        np.random.seed(epoch) 
+        indexes = np.arange(N)
+        np.random.shuffle(indexes)
+        batches = np.array_split(indexes, round(N / bs))
+
+        # define the loss
+        loss_lst = []
+        for batch in batches:
+            # to device
+            z_bs = inputs[batch].to(device)
+            # forward
+            y_bs = model(z_bs)
+            # loss
+            losses = loss_fn(y_bs)
+            loss = torch.mean(losses)
+            # backward
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            # record the loss
+            loss_lst.extend(losses.detach().cpu().numpy().reshape(-1))
+
+        # calculate the total loss
+        total_loss = np.mean(loss_lst)
         # print the loss
-        logger.info("epoch: {}, loss: {}".format(epoch, loss.item()))
+        logger.info("epoch: {}, loss: {}".format(epoch, total_loss))
 
         # update the res_dict
         res_dict = {
             "epoch": [epoch],
-            "loss": [loss.item()],
+            "loss": [total_loss],
         }
         total_res_dict = update_dict(src = res_dict,
                                      dst = total_res_dict)
 
-        # save the intermediate featuremap's gradients
-        x_grad = x_grads[0].detach().cpu().numpy()
-        np.save(os.path.join(save_path, f"x_grad_{epoch}.npy"), x_grad)
-
         # save the model
         torch.save(model.state_dict(), os.path.join(save_path, f"model_{epoch}.pth"))
-    # remove the hook
-    hook.remove()
+   
     # save the inputs
     torch.save(inputs, os.path.join(save_path, "inputs.pt"))
     # save the res_dict
@@ -140,10 +160,12 @@ def train(device: torch.device,
 # generate random tensor, called Z of shape (n, d)
 def generate_Z(n: int, 
                d: int, 
+               seed: int = 0,
                low: int = -10, 
                high: int = 10):
     """generate random tensor, called Z of shape (n, d)"""
     logger = get_logger("generate_Z")
+    set_seed(seed) # set the seed
     Z = torch.rand(size = (n, d)) * (high - low) + low
     logger.info(f"Z shape: {Z.shape}; max: {Z.max()}; min: {Z.min()}")
     return Z.float()
@@ -164,7 +186,7 @@ def add_args() -> argparse.Namespace:
                         help="set the random seed.")
     parser.add_argument("--save_root", default="../outs/tmp/", type=str,
                         help='the path of saving results.')
-    parser.add_argument("-n", '--sample_num', default=100, type=int,
+    parser.add_argument("-n", '--sample_num', default=1000, type=int,
                         help="set the number of inputs.")
     parser.add_argument("-d", '--input_dim', default=10, type=int,
                         help="set the dimension of inputs.")
@@ -172,8 +194,12 @@ def add_args() -> argparse.Namespace:
                         help="set epoch number")
     parser.add_argument("--lr", default=0.01, type=float,
                         help="set the learning rate.")
+    parser.add_argument("--bs", default=100, type=int,
+                        help="set the batch size")
     parser.add_argument("-b", "--is_bn", action="store_true", dest="is_bn",
                         help="enable BN.")
+    parser.add_argument("-t", "--is_learn", action="store_true", dest="is_learn",
+                        help="enable training the learnable parameters in BN.")
     # set if using debug mod
     parser.add_argument("-v", "--verbose", action="store_true", dest="verbose",
                         help="enable debug info output.")
@@ -187,6 +213,7 @@ def add_args() -> argparse.Namespace:
                          MOMENT,
                          f"seed{args.seed}",
                          "bn" if args.is_bn else "no_bn",
+                         "learnable" if args.is_learn else "not_learnable",
                          f"sample_num{args.sample_num}",
                          f"input_dim{args.input_dim}",
                          f"epochs{args.epochs}",
@@ -220,7 +247,9 @@ def main():
 
     # generate the inputs
     logger.info("#########generating inputs....")
-    inputs = generate_Z(n = args.sample_num, d = args.input_dim)
+    inputs = generate_Z(n = args.sample_num, 
+                        d = args.input_dim,
+                        seed = args.seed) # the data on cpu now.
     
     # define the model
     logger.info("#########define the model....")
@@ -233,7 +262,9 @@ def main():
           model = model,
           inputs = inputs,
           epochs = args.epochs,
-          lr = args.lr)
+          lr = args.lr,
+          bs = args.bs,
+          isLearn = args.is_learn)
 
 if __name__ == "__main__":
     main()
