@@ -9,18 +9,19 @@ from typing import NoReturn
 # import internal libs
 from utils import set_logger, get_logger, set_seed, set_device, \
     log_settings, save_current_src, update_dict
+from utils.custom_bn import BatchNorm1d
 from config import DATE, MOMENT, SRC_PATH
 
 # define the forward pass of the network
 class Net(nn.Module):
     def __init__(self, 
                  d: int,
-                 isBN: bool) -> NoReturn:
+                 isCustomBN: bool) -> NoReturn:
         """simple net, include a linear layer and BN(if isBN is True)
 
         Args:
             d (int): the dimension of input.
-            isBN (bool): if use BN.
+            isCustomBN (bool): if use torch BN.
         
         Return:
             None
@@ -30,8 +31,14 @@ class Net(nn.Module):
         # define the linear layer
         self.main = nn.Sequential(
             nn.Linear(d, 1), # (N, d) -> (N, 1)
-            nn.BatchNorm1d(1, eps=0) if isBN else nn.Identity(), # (N, 1) -> (N, 1)
+            BatchNorm1d(1, eps = 0) if isCustomBN else nn.BatchNorm1d(1, eps = 0), # (N, 1) -> (N, 1)
         )
+
+        # initialize the weights...
+        for m in self.modules():
+            if isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
 
     def forward(self, 
                 z: torch.Tensor) -> torch.Tensor:
@@ -100,6 +107,11 @@ def train(device: torch.device,
     
     # define the optimizer
     optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr = lr)
+
+    # first forward
+    Z_all = Z.to(device)
+    _ = model(Z_all)
+    del Z_all
 
     # initialize the res_dict
     total_res_dict = {}
@@ -246,8 +258,8 @@ def add_args() -> argparse.Namespace:
                         help="set the learning rate.")
     parser.add_argument("--bs", default=100, type=int,
                         help="set the batch size")
-    parser.add_argument("-b", "--is_bn", action="store_true", dest="is_bn",
-                        help="enable BN.")
+    parser.add_argument("-b", "--is_custom_bn", action="store_true", dest="is_custom_bn",
+                        help="enable custom BN.")
     parser.add_argument("-t", "--is_learn", action="store_true", dest="is_learn",
                         help="enable training the learnable parameters in BN.")
     # set if using debug mod
@@ -262,7 +274,7 @@ def add_args() -> argparse.Namespace:
     exp_name = "-".join([DATE, 
                          MOMENT,
                          f"seed{args.seed}",
-                         "bn" if args.is_bn else "no_bn",
+                         "custom_bn" if args.is_custom_bn else "torch_bn",
                          "learnable" if args.is_learn else "not_learnable",
                          f"sample_num{args.sample_num}",
                          f"input_dim{args.input_dim}",
@@ -305,12 +317,12 @@ def main():
     Z_test = generate_Z(n = args.sample_num,
                         d = args.input_dim,
                         seed = (args.seed+1) ** 2,
-                        low = -100,
+                        low = 0,
                         high = 100)
     
     # define the model
     logger.info("#########define the model....")
-    model = Net(d = args.input_dim, isBN = args.is_bn)
+    model = Net(d = args.input_dim, isCustomBN = args.is_custom_bn)
     model = model.to(args.device)
     
     # train the model
