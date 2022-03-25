@@ -10,3 +10,6 @@ MOMENT = str(datetime.now().hour).zfill(2)+str(datetime.now().minute).zfill(2) +
 
 # current path
 SRC_PATH = os.path.dirname(os.path.abspath(__file__))
+
+# set the loss's lower bound
+LOSS_LOWER_BOUND = -100

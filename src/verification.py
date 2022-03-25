@@ -10,7 +10,7 @@ from typing import NoReturn
 from utils import set_logger, get_logger, set_seed, set_device, \
     log_settings, save_current_src, update_dict
 from utils.custom_bn import BatchNorm1d
-from config import DATE, MOMENT, SRC_PATH
+from config import DATE, MOMENT, SRC_PATH, LOSS_LOWER_BOUND
 
 # define the forward pass of the network
 class Net(nn.Module):
@@ -73,7 +73,8 @@ def train(device: torch.device,
           epochs: float,
           lr: float,
           bs: int,
-          isLearn: bool,) -> Net:
+          isLearn: bool,
+          lower_bound: float = LOSS_LOWER_BOUND) -> Net:
     """
     Args:
         device (torch.device): GPU
@@ -84,6 +85,7 @@ def train(device: torch.device,
         lr (float): learning rate
         bs (int): batch size
         isLearn (bool): if the learning the learnable parameters in BN.
+        lower_bound (float): the lower bound of the loss.
     
     Return:
         model (Net): the trained model.
@@ -159,6 +161,11 @@ def train(device: torch.device,
 
         # save the model
         torch.save(model.state_dict(), os.path.join(save_path, f"model_{epoch}.pth"))
+
+        # check if go on
+        if total_loss < lower_bound:
+            logger.warning(f"the total loss {total_loss} has reached the lower bound {lower_bound}. Break training loop.")
+            break
    
     # save the inputs
     torch.save(Z, os.path.join(save_path, "Z.pt"))
