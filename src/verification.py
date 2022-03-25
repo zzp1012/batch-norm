@@ -36,7 +36,7 @@ class Net(nn.Module):
 
         # initialize the weights...
         for m in self.modules():
-            if isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+            if isinstance(m, (nn.BatchNorm2d, nn.GroupNorm, BatchNorm1d)):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
@@ -62,8 +62,7 @@ def loss_fn(y: torch.Tensor) -> torch.Tensor:
     Return:
         loss (tensor): scalar
     """
-    # loss = 1 / n * sum(1 + 2y + 3y^2 + 4y^3 + 5y^4)
-    losses =  1 + 2 * y + 3 * torch.pow(y, 2) # (n, 1)
+    losses =  - 3 * torch.pow(y, 2) # (n, 1)
     return losses
 
 
@@ -111,6 +110,8 @@ def train(device: torch.device,
     # first forward
     Z_all = Z.to(device)
     _ = model(Z_all)
+    assert model.main[1].num_batches_tracked == 1, \
+        "check if the num_batches_tracked correctly updated."
     del Z_all
 
     # initialize the res_dict
