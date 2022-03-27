@@ -225,6 +225,8 @@ def test(device: torch.device,
 
     # store the loss_lst
     np.save(os.path.join(save_path, "loss_lst.npy"), np.array(loss_lst))
+    # save the input
+    torch.save(Z, os.path.join(save_path, "Z.pt"))
 
 
 # generate random tensor, called Z of shape (n, d)
@@ -325,8 +327,8 @@ def main():
     Z_test = generate_Z(n = args.sample_num,
                         d = args.input_dim,
                         seed = (args.seed+1) ** 2,
-                        low = 0,
-                        high = 100)
+                        low = -20,
+                        high = 20)
     
     # define the model
     logger.info("#########define the model....")
