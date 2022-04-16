@@ -37,6 +37,6 @@ def load(root: str = "../data") -> Tuple[Dataset, Dataset]:
         root=root, train=False, download=True, transform=transform_test)
 
     # show basic info of dataset
-    logger.info(f"trainset size: {trainset.train_data.size()}")
-    logger.info(f"testset size: {testset.test_data.size()}")
+    logger.info(f"trainset size: {len(trainset)}")
+    logger.info(f"testset size: {len(testset)}")
     return trainset, testset

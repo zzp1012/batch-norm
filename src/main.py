@@ -6,6 +6,7 @@ import numpy as np
 
 # import internal libs
 from data import prepare_dataset
+from model import prepare_model
 from utils import set_logger, get_logger, set_seed, set_device, \
     log_settings, save_current_src
 from config import DATE, MOMENT, SRC_PATH
@@ -27,7 +28,7 @@ def add_args() -> argparse.Namespace:
                         help='the path of saving results.')
     parser.add_argument("--dataset", default="cifar10", type=str,
                         help='the dataset name.')
-    parser.add_argument("--model", default="resnet18", type=str,
+    parser.add_argument("--model", default="VGG11", type=str,
                         help='the model name.')
     parser.add_argument('--epochs', default=100, type=int,
                         help="set epoch number")
@@ -79,9 +80,16 @@ def main():
     save_current_src(save_path = args.save_path, 
                      src_path = SRC_PATH)
 
-    # generate the inputs
+    # prepare the dataset
     logger.info("#########preparing dataset....")
     trainset, testset = prepare_dataset(args.dataset)
+
+    # prepare the model
+    logger.info("#########preparing model....")
+    model = prepare_model(args.model)
+    logger.info(model)
+
+    
 
 
 if __name__ == "__main__":
