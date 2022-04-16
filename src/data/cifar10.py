@@ -1,4 +1,4 @@
-import torch
+import os, torch
 from torch.utils.data import Dataset
 from torchvision import datasets, transforms
 from typing import Tuple
@@ -30,6 +30,7 @@ def load(root: str = "../data") -> Tuple[Dataset, Dataset]:
     ])
 
     # load the dataset
+    os.makedirs(root, exist_ok=True)
     trainset = datasets.CIFAR10(
         root=root, train=True, download=True, transform=transform_train)
     testset = datasets.CIFAR10(
