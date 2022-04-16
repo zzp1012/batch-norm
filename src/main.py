@@ -7,6 +7,7 @@ import numpy as np
 # import internal libs
 from data import prepare_dataset
 from model import prepare_model
+from train import train
 from utils import set_logger, get_logger, set_seed, set_device, \
     log_settings, save_current_src
 from config import DATE, MOMENT, SRC_PATH
@@ -91,7 +92,15 @@ def main():
 
     # train the model
     logger.info("#########training model....")
-
+    train(save_path = os.path.join(args.save_path, "exp"),
+          device = args.device,
+          model = model,
+          trainset = trainset,
+          testset = testset,
+          epochs = args.epochs,
+          lr = args.lr,
+          batch_size = args.bs,
+          seed = args.seed)
 
 if __name__ == "__main__":
     main()
