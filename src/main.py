@@ -86,10 +86,11 @@ def main():
 
     # prepare the model
     logger.info("#########preparing model....")
-    model = prepare_model(args.model)
+    model = prepare_model(args.model, args.dataset)
     logger.info(model)
 
-    
+    # train the model
+    logger.info("#########training model....")
 
 
 if __name__ == "__main__":
