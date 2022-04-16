@@ -1,5 +1,6 @@
 # ignore data/
 data/
+!src/data/
 # ignore outs/
 outs/
 # ignore .png
@@ -8,6 +9,7 @@ outs/
 __pycache__/
 # ignore model
 model/
+!src/model/
 # ignore .vscode
 .vscode/
 # ignore temp-run.sh
