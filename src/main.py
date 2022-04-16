@@ -5,6 +5,7 @@ import torch.nn as nn
 import numpy as np
 
 # import internal libs
+from data import prepare_dataset
 from utils import set_logger, get_logger, set_seed, set_device, \
     log_settings, save_current_src
 from config import DATE, MOMENT, SRC_PATH
@@ -24,6 +25,10 @@ def add_args() -> argparse.Namespace:
                         help="set the random seed.")
     parser.add_argument("--save_root", default="../outs/tmp/", type=str,
                         help='the path of saving results.')
+    parser.add_argument("--dataset", default="cifar10", type=str,
+                        help='the dataset name.')
+    parser.add_argument("--model", default="resnet18", type=str,
+                        help='the model name.')
     parser.add_argument('--epochs', default=100, type=int,
                         help="set epoch number")
     parser.add_argument("--lr", default=0.01, type=float,
@@ -42,6 +47,8 @@ def add_args() -> argparse.Namespace:
     exp_name = "-".join([DATE, 
                          MOMENT,
                          f"seed{args.seed}",
+                         f"data{args.dataset}",
+                         f"model{args.model}",
                          f"epochs{args.epochs}",
                          f"lr{args.lr}",
                          f"bs{args.bs}"])
@@ -74,6 +81,7 @@ def main():
 
     # generate the inputs
     logger.info("#########preparing dataset....")
+    trainset, testset = prepare_dataset(args.dataset)
 
 
 if __name__ == "__main__":
