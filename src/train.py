@@ -87,6 +87,8 @@ def train(save_path: str,
     total_res_dict = {
         "train_loss": [],
         "train_acc": [],
+        "test_loss": [],
+        "test_acc": [],
     }
     for epoch in range(epochs):
         logger.info(f"######Epoch - {epoch}")
@@ -117,13 +119,38 @@ def train(save_path: str,
         train_acc /= len(trainset)
         logger.info(f"train loss: {train_loss}; train accuracy: {train_acc}")
 
+        # test the model
+        model.eval()
+        test_losses, test_acc = [], 0
+        with torch.no_grad():
+            testloader = DataLoader(testset, batch_size=batch_size)
+            for inputs, labels in tqdm(testloader):
+                # set the inputs to device
+                inputs, labels = inputs.to(device), labels.to(device)
+                # set the outputs
+                outputs = model(inputs)
+                # set the loss
+                losses = loss_fn(outputs, labels)
+                # set the loss and accuracy
+                test_losses.extend(losses.cpu().detach().numpy())
+                test_acc += (outputs.max(1)[1] == labels).sum().item()
+        # print the test loss and accuracy
+        test_loss = np.mean(test_losses)
+        test_acc /= len(testset)
+        logger.info(f"test loss: {test_loss}; test accuracy: {test_acc}")
+
         # update res_dict
         res_dict = {
             "train_loss": [train_loss],
-            "train_acc": [train_acc]
+            "train_acc": [train_acc],
+            "test_loss": [test_loss],
+            "test_acc": [test_acc],
         }
         total_res_dict = update_dict(res_dict, total_res_dict)
-    
-    # save the results
-    res_df = pd.DataFrame.from_dict(total_res_dict)
-    res_df.to_csv(os.path.join(save_path, "train.csv"), index = False)
+
+        # save the results
+        if epoch % 10 == 0 or epoch == epochs - 1:
+            torch.save(model.state_dict(), 
+                       os.path.join(save_path, f"model_{epoch+1}.pt"))
+            res_df = pd.DataFrame.from_dict(total_res_dict)
+            res_df.to_csv(os.path.join(save_path, "train.csv"), index = False)
