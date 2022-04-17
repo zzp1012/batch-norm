@@ -29,7 +29,9 @@ def add_args() -> argparse.Namespace:
                         help='the path of saving results.')
     parser.add_argument("--dataset", default="cifar10", type=str,
                         help='the dataset name.')
-    parser.add_argument("--model", default="VGG11", type=str,
+    parser.add_argument("--method", default="random", type=str,
+                        help='the method to train')
+    parser.add_argument("--model", default="vgg11_bn", type=str,
                         help='the model name.')
     parser.add_argument('--epochs', default=100, type=int,
                         help="set epoch number")
@@ -49,8 +51,9 @@ def add_args() -> argparse.Namespace:
     exp_name = "-".join([DATE, 
                          MOMENT,
                          f"seed{args.seed}",
-                         f"data{args.dataset}",
-                         f"model{args.model}",
+                         f"{args.dataset}",
+                         f"{args.model}",
+                         f"{args.method}",
                          f"epochs{args.epochs}",
                          f"lr{args.lr}",
                          f"bs{args.bs}"])
@@ -100,7 +103,8 @@ def main():
           epochs = args.epochs,
           lr = args.lr,
           batch_size = args.bs,
-          seed = args.seed)
+          seed = args.seed,
+          method = args.method)
 
 if __name__ == "__main__":
     main()

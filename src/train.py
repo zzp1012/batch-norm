@@ -3,12 +3,13 @@ import random
 import torch
 import torch.nn as nn
 import numpy as np
+import pandas as pd
 from torch.utils.data import Dataset, DataLoader
 from typing import NoReturn
 from tqdm import tqdm
 
 # import internal libs
-from utils import get_logger
+from utils import get_logger, update_dict
 
 def create_batches(dataset: Dataset,
                    batch_size: int,
@@ -57,7 +58,7 @@ def train(save_path: str,
           lr: float,
           batch_size: int,
           seed: int,
-          method: str = "label") -> NoReturn:
+          method: str = "random") -> NoReturn:
     """train the model
 
     Args:
@@ -81,14 +82,19 @@ def train(save_path: str,
     # set the optimizer
     optimizer = torch.optim.SGD(model.parameters(), lr=lr)
     # set the loss function
-    loss_fn = nn.CrossEntropyLoss()
+    loss_fn = nn.CrossEntropyLoss(reduction="none")
     # set the epochs
+    total_res_dict = {
+        "train_loss": [],
+        "train_acc": [],
+    }
     for epoch in range(epochs):
         logger.info(f"######Epoch - {epoch}")
         # create the batches for train
         train_batches = create_batches(trainset, batch_size, epoch + seed, method)
         # train the model
         model.train()
+        train_losses, train_acc = [], 0
         for inputs, labels in tqdm(train_batches):
             # set the inputs to device
             inputs, labels = inputs.to(device), labels.to(device)
@@ -97,8 +103,27 @@ def train(save_path: str,
             # set the outputs
             outputs = model(inputs)
             # set the loss
-            loss = loss_fn(outputs, labels)
+            losses = loss_fn(outputs, labels)
+            loss = torch.mean(losses)
             # set the loss
             loss.backward()
             # set the optimizer
             optimizer.step()
+            # set the loss and accuracy
+            train_losses.extend(losses.cpu().detach().numpy())
+            train_acc += (outputs.max(1)[1] == labels).sum().item()
+        # print the train loss and accuracy
+        train_loss = np.mean(train_losses)
+        train_acc /= len(trainset)
+        logger.info(f"train loss: {train_loss}; train accuracy: {train_acc}")
+
+        # update res_dict
+        res_dict = {
+            "train_loss": [train_loss],
+            "train_acc": [train_acc]
+        }
+        total_res_dict = update_dict(res_dict, total_res_dict)
+    
+    # save the results
+    res_df = pd.DataFrame.from_dict(total_res_dict)
+    res_df.to_csv(os.path.join(save_path, "train.csv"), index = False)
