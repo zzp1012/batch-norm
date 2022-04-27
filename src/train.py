@@ -57,6 +57,7 @@ def train(save_path: str,
           epochs: int,
           lr: float,
           batch_size: int,
+          weight_decay: float,
           seed: int,
           method: str = "random") -> NoReturn:
     """train the model
@@ -70,6 +71,7 @@ def train(save_path: str,
         epochs: the epochs number
         lr: the learning rate
         batch_size: the batch size
+        weight_decay: the weight decay
         seed: the seed
     """
     logger = get_logger(__name__)
@@ -80,7 +82,7 @@ def train(save_path: str,
     # put the model to GPU or CPU
     model = model.to(device)
     # set the optimizer
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr)
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr, weight_decay=weight_decay)
     # set the loss function
     loss_fn = nn.CrossEntropyLoss(reduction="none")
     # set the epochs
@@ -90,6 +92,18 @@ def train(save_path: str,
         "test_loss": [],
         "test_acc": [],
     }
+
+    bn_layers = {
+        "features.1": model.features[1],
+        "features.5": model.features[5],
+        "features.9": model.features[9],
+        "features.12": model.features[12],
+        "features.16": model.features[16],
+        "features.19": model.features[19],
+        "features.23": model.features[23],
+        "features.26": model.features[26],
+    }
+
     for epoch in range(epochs):
         logger.info(f"######Epoch - {epoch}")
         # create the batches for train
@@ -147,6 +161,16 @@ def train(save_path: str,
             "test_acc": [test_acc],
         }
         total_res_dict = update_dict(res_dict, total_res_dict)
+
+        for name, module in bn_layers.items():
+            bn_param_path = os.path.join(save_path, "bn_params", f"{name}")
+            os.makedirs(bn_param_path, exist_ok=True)
+            try:
+                torch.save(module.running_mean, os.path.join(bn_param_path, f"{epoch}_mean.pth"))
+                torch.save(module.running_var, os.path.join(bn_param_path, f"{epoch}_var.pth"))
+            except:
+                bn_layers = {}
+                break
 
         # save the results
         if epoch % 10 == 0 or epoch == epochs - 1:

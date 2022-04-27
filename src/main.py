@@ -39,6 +39,8 @@ def add_args() -> argparse.Namespace:
                         help="set the learning rate.")
     parser.add_argument("--bs", default=100, type=int,
                         help="set the batch size")
+    parser.add_argument("--wd", default=0.01, type=float,
+                        help="set the weight decay")                 
     # set if using debug mod
     parser.add_argument("-v", "--verbose", action="store_true", dest="verbose",
                         help="enable debug info output.")
@@ -56,7 +58,8 @@ def add_args() -> argparse.Namespace:
                          f"{args.method}",
                          f"epochs{args.epochs}",
                          f"lr{args.lr}",
-                         f"bs{args.bs}"])
+                         f"bs{args.bs}",
+                         f"wd{args.wd}"])
     args.save_path = os.path.join(args.save_root, exp_name)
     if not os.path.exists(args.save_path):
         os.makedirs(args.save_path)
@@ -103,6 +106,7 @@ def main():
           epochs = args.epochs,
           lr = args.lr,
           batch_size = args.bs,
+          weight_decay = args.wd,
           seed = args.seed,
           method = args.method)
 
