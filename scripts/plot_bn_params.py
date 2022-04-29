@@ -19,7 +19,7 @@ def plot_multiple_curves(save_path: str,
     for key in res_dict.keys():
         ax.plot(np.arange(len(res_dict[key])) + 1, np.asarray(res_dict[key]), label=key)
     ax.grid()
-    ax.set(xlabel = 'epoch', title = name)
+    ax.set(xlabel = 'batch', title = name)
     # Add a legend, and position it on the lower right (with no box)
     plt.legend(frameon=True, prop={'size': 10})
     # save the fig
@@ -29,22 +29,21 @@ def plot_multiple_curves(save_path: str,
 
 res_path = "NEED TO BE FILLED"
 plot_dim = 15
-epochs = 100
+epochs = 10
+batches = 390
 
 for dir_name in os.listdir(res_path):
     for postfix in ["mean", "var"]:
-        val_lst = []
         for i in range(1, epochs+1):
-            val = torch.load(os.path.join(res_path, dir_name, f"{i}_{postfix}.pth"))
-            val_lst.append(val)
-        val_lst = torch.stack(val_lst).cpu().numpy()
-        N, D = val_lst.shape
-        assert N == epochs, "the number of epochs is not correct"
+            val_lst = []
+            for j in range(batches):
+                val = torch.load(os.path.join(res_path, dir_name, f"epoch{i}_batch{j}_{postfix}.pth"))
+                val_lst.append(val)
+            val_lst = torch.stack(val_lst).cpu().numpy()
+            N, D = val_lst.shape
+            assert N == batches, "the number of epochs is not correct"
 
-        val_dict = {f"dim{i}": val_lst[:, i] for i in range(min(D, plot_dim))}
-
-        save_path = os.path.join(res_path, dir_name)
-        os.makedirs(save_path, exist_ok=True)
-        plot_multiple_curves(save_path = save_path,
-                             res_dict = val_dict,
-                             name = f"{postfix}_curve")
+            val_dict = {f"dim{i}": val_lst[:, i] for i in range(min(D, plot_dim))}
+            plot_multiple_curves(save_path = res_path,
+                                res_dict = val_dict,
+                                name = f"{dir_name}_{postfix}_epoch{i}_curve")
