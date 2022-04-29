@@ -14,17 +14,16 @@ print("running var", bn_layer.running_var)
 print("gamma: ", bn_layer.weight)
 print("beta: ", bn_layer.bias)
 
-
-# print("batch mean: ", input.mean(dim=0).flatten())
-# print("batch std: ", input.std(0, unbiased=False).flatten())
-
 bn_layer.train()
 for i in range(10):
     input = torch.stack([a, b, c])
+    print("batch mean: ", input.mean(dim=0).flatten())
+    print("batch std: ", input.std(0, unbiased=False).flatten())
+
     output = bn_layer(input)
     print("y_0: ", output[0].flatten())
     print("y_1: ", output[1].flatten())
-    print("y_2: ", output[2].flatten())
+    print("y_2: ", output[2].flatten())  
 
     output.sum().backward()
     print("sample 1: grad", a.grad)
