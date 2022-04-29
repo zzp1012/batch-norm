@@ -1,5 +1,4 @@
 import os, sys
-sys.path.insert(1, '../src')
 import torch
 import numpy as np
 import pandas as pd
@@ -8,14 +7,16 @@ import seaborn as sns
 from torch.utils.data import DataLoader
 from sklearn.manifold import TSNE
 
+MODEL_NAME = "vgg11"
+BN_TYPE = "none"
+DATASET = "cifar10"
+MODEL_PATH = "NEED TO BE FILLED"
+SAMPLE_NUM = 1000
+
+sys.path.insert(1, os.path.join(os.path.dirname(MODEL_NAME), "../src/"))
 # import internal libs
 from data import prepare_dataset
 from model import prepare_model
-
-MODEL_NAME = "vgg11_bn"
-DATASET = "cifar10"
-MODEL_PATH = "/data/zzp1012/batch-norm/outs/0417/train/0417-210539-seed0-cifar10-vgg11_bn-random-epochs50-lr0.01-bs100/exp/model_50.pt"
-SAMPLE_NUM = 1000
 
 # load the dataset
 _, dataset = prepare_dataset(DATASET)
@@ -30,7 +31,7 @@ for i, label in enumerate(range(len(dataset.classes))):
 sampled_inputs, sampled_labels = inputs[indices], labels[indices].cpu().numpy()
 
 # make the model
-model = prepare_model(MODEL_NAME, DATASET)
+model = prepare_model(MODEL_NAME, DATASET, BN_TYPE)
 # load the pretrained model
 state_dict = torch.load(MODEL_PATH)
 model.load_state_dict(state_dict)
