@@ -57,7 +57,7 @@ def add_args() -> argparse.Namespace:
                          f"seed{args.seed}",
                          f"{args.dataset}",
                          f"{args.model}",
-                         f"bn_{args.bn_type}"
+                         f"bn_{args.bn_type}",
                          f"{args.method}",
                          f"epochs{args.epochs}",
                          f"lr{args.lr}",
