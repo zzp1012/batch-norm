@@ -1,8 +1,5 @@
 import os
 import argparse
-import torch
-import torch.nn as nn
-import numpy as np
 
 # import internal libs
 from data import prepare_dataset
@@ -39,7 +36,7 @@ def add_args() -> argparse.Namespace:
                         help="set epoch number")
     parser.add_argument("--lr", default=0.01, type=float,
                         help="set the learning rate.")
-    parser.add_argument("--bs", default=100, type=int,
+    parser.add_argument("--bs", default=128, type=int,
                         help="set the batch size")
     parser.add_argument("--wd", default=0.01, type=float,
                         help="set the weight decay")                 
