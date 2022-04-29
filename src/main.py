@@ -31,8 +31,10 @@ def add_args() -> argparse.Namespace:
                         help='the dataset name.')
     parser.add_argument("--method", default="random", type=str,
                         help='the method to train')
-    parser.add_argument("--model", default="vgg11_bn", type=str,
+    parser.add_argument("--model", default="vgg11", type=str,
                         help='the model name.')
+    parser.add_argument("--bn_type", default="none", type=str,
+                        help='the Batch normalizaition type.')
     parser.add_argument('--epochs', default=100, type=int,
                         help="set epoch number")
     parser.add_argument("--lr", default=0.01, type=float,
@@ -55,6 +57,7 @@ def add_args() -> argparse.Namespace:
                          f"seed{args.seed}",
                          f"{args.dataset}",
                          f"{args.model}",
+                         f"bn_{args.bn_type}"
                          f"{args.method}",
                          f"epochs{args.epochs}",
                          f"lr{args.lr}",
@@ -93,7 +96,7 @@ def main():
 
     # prepare the model
     logger.info("#########preparing model....")
-    model = prepare_model(args.model, args.dataset)
+    model = prepare_model(args.model, args.dataset, args.bn_type)
     logger.info(model)
 
     # train the model

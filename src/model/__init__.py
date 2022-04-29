@@ -5,12 +5,14 @@ import torch.nn as nn
 from utils import get_logger
 
 def prepare_model(model_name: str,
-                  dataset: str) -> nn.Module:
+                  dataset: str,
+                  bn_type: str) -> nn.Module:
     """prepare the random initialized model according to the name.
 
     Args:
         model_name (str): the model name
         dataset (str): the dataset name
+        bn_type (str): the Batch normalization type
 
     Return:
         the model
@@ -25,7 +27,7 @@ def prepare_model(model_name: str,
             num_classes = 100
         else:
             raise ValueError(f"{dataset} is not supported.")
-        model = cifar_vgg.__dict__[model_name](num_classes=num_classes)
+        model = cifar_vgg.__dict__[model_name](num_classes=num_classes, bn_type=bn_type)
     else:
         raise ValueError(f"unknown model name: {model_name}")
     return model

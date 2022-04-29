@@ -1,5 +1,5 @@
 import torch.nn as nn
-from model.utils import BatchNorm2d
+from model.utils import BatchNorm1d
 
 __all__ = [
     'VGG', 'vgg11', 'vgg11_bn', 'vgg13', 'vgg13_bn', 'vgg16', 'vgg16_bn',
@@ -9,17 +9,25 @@ __all__ = [
 
 class VGG(nn.Module):
 
-    def __init__(self, features, num_classes=10, init_weights=True):
+    def __init__(self, features, num_classes=10, init_weights=True,
+                 bn_type = "none"):
         super(VGG, self).__init__()
         self.features = features
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        if bn_type == "none":
+            normal_layer = nn.Identity
+        elif bn_type == "normal":
+            normal_layer = nn.BatchNorm1d
+        elif bn_type == "custom":
+            normal_layer = BatchNorm1d
+        else:
+            raise ValueError(f"{bn_type} is not supported.")
         self.classifier = nn.Sequential(
             nn.Linear(512 * 1 * 1, 4096),
+            normal_layer(4096),
             nn.ReLU(True),
-            nn.Dropout(),
             nn.Linear(4096, 4096),
             nn.ReLU(True),
-            nn.Dropout(),
             nn.Linear(4096, num_classes),
         )
         if init_weights:
@@ -79,15 +87,6 @@ def _vgg(arch, cfg, batch_norm, pretrained, progress, **kwargs):
     return model
 
 
-def _vgg_detach(arch, cfg, batch_norm, pretrained, progress, **kwargs):
-    if pretrained:
-        kwargs['init_weights'] = False
-    model = VGG(make_layers(cfgs[cfg], batch_norm=batch_norm, norm_layer=BatchNorm2d), **kwargs)
-    if pretrained:
-        assert RuntimeError("No pretrained model for vgg on CIFAR")
-    return model
-
-
 def vgg11(pretrained=False, progress=True, **kwargs):
     """VGG 11-layer model (configuration "A")
 
@@ -106,16 +105,6 @@ def vgg11_bn(pretrained=False, progress=True, **kwargs):
         progress (bool): If True, displays a progress bar of the download to stderr
     """
     return _vgg('vgg11_bn', 'A', True, pretrained, progress, **kwargs)
-
-
-def vgg11_bn_detach(pretrained=False, progress=True, **kwargs):
-    """VGG 11-layer model (configuration "A") with batch normalization
-
-    Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
-        progress (bool): If True, displays a progress bar of the download to stderr
-    """
-    return _vgg_detach('vgg11_bn', 'A', True, pretrained, progress, **kwargs)
 
 
 def vgg13(pretrained=False, progress=True, **kwargs):
