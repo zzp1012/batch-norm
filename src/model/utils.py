@@ -14,7 +14,7 @@ class BatchNorm1d(nn.Module):
         self.num_features = num_features
         self.eps = eps
         self.momentum = momentum
-        self.isDetach = False
+        self.isDetach = True
         
         self.weight = torch.nn.Parameter(torch.ones((num_features)))
         self.bias = torch.nn.Parameter(torch.zeros((num_features)))
