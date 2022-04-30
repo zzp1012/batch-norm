@@ -34,6 +34,7 @@ data = pd.read_csv(data_path)
 # make the res dict
 loss_dict = {key: val for key, val in data.to_dict().items() if key in ["train_loss", "test_loss"]}
 acc_dict = {key: val for key, val in data.to_dict().items() if key in ["train_acc", "test_acc"]}
+cosine_dict = {key: val for key, val in data.to_dict().items() if key in ["cosine"]}
 
 # make save path
 save_path = os.path.dirname(data_path)
@@ -46,3 +47,7 @@ plot_multiple_curves(save_path = save_path,
 plot_multiple_curves(save_path = save_path,
                      res_dict = acc_dict,
                      name = "acc-curve")
+
+plot_multiple_curves(save_path = save_path,
+                     res_dict = cosine_dict,
+                     name = "cosine-curve")
