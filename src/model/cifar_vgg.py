@@ -25,9 +25,9 @@ class VGG(nn.Module):
         self.classifier = nn.Sequential(
             nn.Linear(512 * 1 * 1, 4096),
             normal_layer(4096),
-            nn.ReLU(True),
+            nn.ReLU(),
             nn.Linear(4096, 4096),
-            nn.ReLU(True),
+            nn.ReLU(),
             nn.Linear(4096, num_classes),
         )
         if init_weights:
