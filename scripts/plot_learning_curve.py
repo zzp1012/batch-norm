@@ -5,7 +5,8 @@ from matplotlib import pyplot as plt
 
 def plot_multiple_curves(save_path: str, 
                          res_dict: dict,
-                         name: str) -> None:
+                         name: str,
+                         ylim: list) -> None:
     """plot curves in one figure for each key in dictionary.
     Args:
         args (dict): set containing all program arguments
@@ -22,6 +23,7 @@ def plot_multiple_curves(save_path: str,
     ax.set(xlabel = 'epoch', title = name)
     # Add a legend, and position it on the lower right (with no box)
     plt.legend(frameon=True, prop={'size': 10})
+    plt.ylim(ylim)
     # save the fig
     path = os.path.join(save_path, "{}.png".format(name))
     fig.savefig(path)
@@ -42,12 +44,15 @@ save_path = os.path.dirname(data_path)
 # plot
 plot_multiple_curves(save_path = save_path,
                      res_dict = loss_dict,
-                     name = "loss-curve")
+                     name = "loss-curve",
+                     ylim = [1.3, 2.4])
 
 plot_multiple_curves(save_path = save_path,
                      res_dict = acc_dict,
-                     name = "acc-curve")
+                     name = "acc-curve",
+                     ylim = [0, 0.6])
 
 plot_multiple_curves(save_path = save_path,
                      res_dict = cosine_dict,
-                     name = "cosine-curve")
+                     name = "cosine-curve",
+                     ylim = [0.3, 1])
