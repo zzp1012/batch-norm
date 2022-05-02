@@ -20,6 +20,8 @@ class VGG(nn.Module):
             normal_layer = nn.BatchNorm1d
         elif bn_type == "custom":
             normal_layer = BatchNorm1d
+        elif bn_type == "layer":
+            normal_layer = nn.LayerNorm
         else:
             raise ValueError(f"{bn_type} is not supported.")
         self.classifier = nn.Sequential(
