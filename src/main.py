@@ -1,5 +1,6 @@
 import os
 import argparse
+import torch
 
 # import internal libs
 from data import prepare_dataset
@@ -24,6 +25,8 @@ def add_args() -> argparse.Namespace:
                         help="set the random seed.")
     parser.add_argument("--save_root", default="../outs/tmp/", type=str,
                         help='the path of saving results.')
+    parser.add_argument("--resume_path", default=None, type=str,
+                        help='the path of pretrained model.')
     parser.add_argument("--dataset", default="cifar10", type=str,
                         help='the dataset name.')
     parser.add_argument("--method", default="random", type=str,
@@ -97,6 +100,9 @@ def main():
     # prepare the model
     logger.info("#########preparing model....")
     model = prepare_model(args.model, args.dataset, args.bn_type)
+    if args.resume_path:
+        logger.info(f"load the pretrained model from {args.resume_path}")
+        model.load_state_dict(torch.load(args.resume_path))
     logger.info(model)
 
     # train the model
