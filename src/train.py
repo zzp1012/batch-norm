@@ -119,7 +119,6 @@ def train(save_path: str,
         train_batches = create_batches(trainset, batch_size, epoch + seed, method)
         # train the model
         model.train()
-        optimizer.zero_grad()
         train_losses, train_ridge_losses, train_acc = [], [], 0
         for batch_idx, (inputs, labels) in enumerate(tqdm(train_batches)):
             # set the inputs to device
@@ -131,12 +130,12 @@ def train(save_path: str,
             # set the loss
             losses = loss_fn(outputs, labels)
             loss = torch.mean(losses)
+            # set zero grad
+            optimizer.zero_grad()
             # set the loss
             loss.backward()
             # set the optimizer
-            if batch_idx % 10 == 9:
-                optimizer.step()
-                optimizer.zero_grad()
+            optimizer.step()    
             # set the loss and accuracy
             train_losses.extend(losses.cpu().detach().numpy())
             train_ridge_losses.extend(ridge_losses.cpu().detach().numpy())
