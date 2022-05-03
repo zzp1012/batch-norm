@@ -45,14 +45,14 @@ save_path = os.path.dirname(data_path)
 plot_multiple_curves(save_path = save_path,
                      res_dict = loss_dict,
                      name = "loss-curve",
-                     ylim = [1.3, 2.4])
+                     ylim = [0.6, 2.6])
 
 plot_multiple_curves(save_path = save_path,
                      res_dict = acc_dict,
                      name = "acc-curve",
-                     ylim = [0, 0.6])
+                     ylim = [0, 1])
 
 plot_multiple_curves(save_path = save_path,
                      res_dict = cosine_dict,
                      name = "cosine-curve",
-                     ylim = [0.3, 1])
+                     ylim = [0, 1])
