@@ -9,24 +9,13 @@ __all__ = [
 
 class VGG(nn.Module):
 
-    def __init__(self, features, num_classes=10, init_weights=True,
-                 bn_type = "none"):
+    def __init__(self, features, num_classes=10, init_weights=True):
         super(VGG, self).__init__()
         self.features = features
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        if bn_type == "none":
-            normal_layer = nn.Identity
-        elif bn_type == "normal":
-            normal_layer = nn.BatchNorm1d
-        elif bn_type == "custom":
-            normal_layer = BatchNorm1d
-        elif bn_type == "layer":
-            normal_layer = nn.LayerNorm
-        else:
-            raise ValueError(f"{bn_type} is not supported.")
         self.classifier = nn.Sequential(
             nn.Linear(512 * 1 * 1, 4096),
-            normal_layer(4096),
+            nn.BatchNorm1d(4096),
             nn.ReLU(),
             nn.Dropout(),
             nn.Linear(4096, 4096),

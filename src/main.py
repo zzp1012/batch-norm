@@ -29,22 +29,10 @@ def add_args() -> argparse.Namespace:
                         help='the path of pretrained model.')
     parser.add_argument("--dataset", default="cifar10", type=str,
                         help='the dataset name.')
-    parser.add_argument("--method", default="random", type=str,
-                        help='the method to train')
     parser.add_argument("--model", default="vgg11", type=str,
                         help='the model name.')
-    parser.add_argument("--bn_type", default="none", type=str,
-                        help='the Batch normalizaition type.')
-    parser.add_argument('--epochs', default=100, type=int,
-                        help="set epoch number")
-    parser.add_argument("--lr", default=0.01, type=float,
-                        help="set the learning rate.")
     parser.add_argument("--bs", default=128, type=int,
-                        help="set the batch size")
-    parser.add_argument("--wd", default=0.01, type=float,
-                        help="set the weight decay")
-    parser.add_argument("--momentum", default=0.9, type=float,
-                        help="set the momentum rate")    
+                        help="set the batch size") 
     # set if using debug mod
     parser.add_argument("-v", "--verbose", action="store_true", dest="verbose",
                         help="enable debug info output.")
@@ -59,13 +47,7 @@ def add_args() -> argparse.Namespace:
                          f"seed{args.seed}",
                          f"{args.dataset}",
                          f"{args.model}",
-                         f"bn_{args.bn_type}",
-                         f"{args.method}",
-                         f"epochs{args.epochs}",
-                         f"lr{args.lr}",
-                         f"bs{args.bs}",
-                         f"wd{args.wd}",
-                         f"momentum{args.momentum}"])
+                         f"bs{args.bs}",])
     args.save_path = os.path.join(args.save_root, exp_name)
     if not os.path.exists(args.save_path):
         os.makedirs(args.save_path)
@@ -99,7 +81,7 @@ def main():
 
     # prepare the model
     logger.info("#########preparing model....")
-    model = prepare_model(args.model, args.dataset, args.bn_type)
+    model = prepare_model(args.model, args.dataset)
     if args.resume_path:
         logger.info(f"load the pretrained model from {args.resume_path}")
         model.load_state_dict(torch.load(args.resume_path))
@@ -107,18 +89,12 @@ def main():
 
     # train the model
     logger.info("#########training model....")
-    train(save_path = os.path.join(args.save_path, "exp"),
+    train(save_path = os.path.join(args.save_path, "exp2"),
           device = args.device,
           model = model,
-          trainset = trainset,
           testset = testset,
-          epochs = args.epochs,
-          lr = args.lr,
           batch_size = args.bs,
-          weight_decay = args.wd,
-          momentum = args.momentum,
-          seed = args.seed,
-          method = args.method)
+          seed = args.seed)
 
 if __name__ == "__main__":
     main()
