@@ -62,17 +62,17 @@ def extra_loss(device: torch.device,
     if loss_type == 1:
         extra_losses = torch.zeros(N, device=device)
     elif loss_type == 2:
-        np.random.seed(seed)
+        np.random.seed(seed+loss_type)
         g = np.random.randn(D)
         g = torch.from_numpy(g).double().to(device)
         extra_losses = torch.matmul(y, g) # with shape of (N, )
     elif loss_type == 3:
-        np.random.seed(seed)
+        np.random.seed(seed+loss_type)
         H_diag = np.random.randn(1, D)
         H_diag = torch.from_numpy(H_diag).double().to(device)
         extra_losses = torch.bmm(y.view(N, 1, D), (H_diag * y).view(N, D, 1)).view(N) # with shape of (N, )
     elif loss_type == 4:
-        np.random.seed(seed)
+        np.random.seed(seed+loss_type)
         H_off = np.random.randn(D, D)
         H_off = torch.from_numpy(H_off).double().to(device)
         H_off.fill_diagonal_(0)
