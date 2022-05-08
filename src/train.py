@@ -3,12 +3,13 @@ import random
 import torch
 import torch.nn as nn
 import numpy as np
+import pandas as pd
 from torch.utils.data import Dataset, DataLoader
 from typing import NoReturn
 from tqdm import tqdm
 
 # import internal libs
-from utils import get_logger, set_seed
+from utils import get_logger
 
 def create_batches(dataset: Dataset,
                    batch_size: int,
@@ -41,7 +42,7 @@ def create_batches(dataset: Dataset,
 
 def extra_loss(device: torch.device,
                loss_type: int,
-               features: torch.Tensor,
+               X: torch.Tensor,
                seed: int) -> torch.Tensor:
     """extra loss
     
@@ -54,26 +55,32 @@ def extra_loss(device: torch.device,
     Returns:
         the extra loss
     """
+    N, D = X.shape
+    mean = X.mean(dim=0, keepdim=True) # (1, D)
+    var = X.var(dim=0, unbiased=False, keepdim=True) # (1, D)
+    y = (X - mean) / torch.sqrt(var) # (N, D)
     if loss_type == 1:
-        return 0.0
+        extra_losses = torch.zeros(N, device=device)
+    elif loss_type == 2:
+        np.random.seed(seed)
+        g = np.random.randn(D)
+        g = torch.from_numpy(g).double().to(device)
+        extra_losses = torch.matmul(y, g) # with shape of (N, )
+    elif loss_type == 3:
+        np.random.seed(seed)
+        H_diag = np.random.randn(1, D)
+        H_diag = torch.from_numpy(H_diag).double().to(device)
+        extra_losses = torch.bmm(y.view(N, 1, D), (H_diag * y).view(N, D, 1)).view(N) # with shape of (N, )
+    elif loss_type == 4:
+        np.random.seed(seed)
+        H_off = np.random.randn(D, D)
+        H_off = torch.from_numpy(H_off).double().to(device)
+        H_off.fill_diagonal_(0)
+        extra_losses = torch.bmm(torch.matmul(y, H_off).view(N, 1, D), y.view(N, D, 1)).view(N) # with shape of (N, )
     else:
-        N, D = features.shape
-        mean = features.mean(dim=0, keepdim=True)
-        var = features.var(dim=0, unbiased=False, keepdim=True)
-        y = (features - mean) / torch.sqrt(var)
-        if loss_type == 2:
-            set_seed(seed)
-            g = torch.randn(D).double().to(device)
-            return torch.matmul(y, g) # with shape of (N, )
-        elif loss_type == 3:
-            H_diag = torch.randn(1, D).double().to(device)
-            return torch.bmm(y.view(N, 1, D), (H_diag * y).view(N, D, 1)).view(N)
-        elif loss_type == 4:
-            H_off = torch.randn(D, D).double().to(device)
-            H_off.fill_diagonal_(0)
-            return torch.bmm(torch.matmul(y, H_off).view(N, 1, D), y.view(N, D, 1)).view(N)
-        else:
-            raise ValueError(f"unknown loss type: {loss_type}")
+        raise ValueError(f"unknown loss type: {loss_type}")
+    return extra_losses
+
 
 def train(save_path: str,
           device: torch.device,
@@ -134,8 +141,15 @@ def train(save_path: str,
                 backward_hook_grads[layer_name] = grad_output[0].clone().detach()
             backward_handles[layer_name] = module.register_backward_hook(get_grads)
         register_hook(module, layer_name)
-
-    # evaluatioin
+    
+    # record the different loss thing and the grad thing
+    res_dict = {
+        "CE_loss": [],
+        "extra_loss": [],
+    }
+    grad_dict = {}
+    
+    # start
     model.train()
     for batch_id, (inputs, labels) in enumerate(tqdm(test_batches)):
         # set the inputs to device
@@ -144,9 +158,13 @@ def train(save_path: str,
         outputs = model(inputs)
         # get the CE_loss
         CE_losses = loss_fn(outputs, labels)
-        extra_losses = 0
+        extra_losses = None
         for layer_name, features in forward_hook_outputs.items():
-            extra_losses += extra_loss(device, loss_type, features, seed)
+            if extra_losses is None:
+                extra_losses = extra_loss(device, loss_type, features, seed)
+            else:
+                extra_losses += extra_loss(device, loss_type, features, seed)
+        assert extra_losses is not None, f"extra_losses is None"
         # set the loss
         loss = (CE_losses + extra_losses).sum(dim=0)
         # set the gradients to zero
@@ -155,8 +173,26 @@ def train(save_path: str,
         loss.backward()
         # get the gradients
         for layer_name, grads in backward_hook_grads.items():
+            grads = grads.cpu()
             logger.debug(f"{layer_name} gradients: {grads.shape}")
-            torch.save(grads, os.path.join(save_path, f"{layer_name}_grad_batch{batch_id}.pt"))
+            if layer_name not in grad_dict:
+                grad_dict[layer_name] = [grads]
+            else:
+                grad_dict[layer_name].append(grads)
+
+        # update the res_dict
+        res_dict["CE_loss"].extend(CE_losses.detach().cpu().numpy())
+        res_dict["extra_loss"].extend(extra_losses.detach().cpu().numpy())
+
+    # record the results
+    res_df = pd.DataFrame.from_dict(res_dict)
+    res_df.to_csv(os.path.join(save_path, "loss.csv"), index = False)
+    # the gradient ting
+    for layer_name, grad_lst in grad_dict.items():
+        # cat the gradients
+        grad_lst = torch.cat(grad_lst, dim=0)
+        # save the gradients
+        torch.save(grad_lst, os.path.join(save_path, f"{layer_name}_grads.pt"))
 
     # remove the forward hook
     for handle in forward_handles.values():
