@@ -1,5 +1,4 @@
 import torch.nn as nn
-from model.utils import BatchNorm1d
 
 __all__ = [
     'VGG', 'vgg11', 'vgg11_bn', 'vgg13', 'vgg13_bn', 'vgg16', 'vgg16_bn',
@@ -16,14 +15,12 @@ class VGG(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         if bn_type == "none":
             normal_layer = nn.Identity
-        elif bn_type == "normal":
+        elif bn_type == "bn":
             normal_layer = nn.BatchNorm1d
-        elif bn_type == "custom":
-            normal_layer = BatchNorm1d
-        elif bn_type == "layer":
+        elif bn_type == "ln":
             normal_layer = nn.LayerNorm
         else:
-            raise ValueError(f"{bn_type} is not supported.")
+            raise ValueError(f"{bn_type} is not supported for vgg11.")
         self.classifier = nn.Sequential(
             nn.Linear(512 * 1 * 1, 4096),
             normal_layer(4096),

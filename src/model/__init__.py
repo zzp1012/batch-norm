@@ -1,4 +1,3 @@
-from ast import Num
 import torch.nn as nn
 
 # import internal libs
@@ -28,6 +27,15 @@ def prepare_model(model_name: str,
         else:
             raise ValueError(f"{dataset} is not supported.")
         model = cifar_vgg.__dict__[model_name](num_classes=num_classes, bn_type=bn_type)
+    elif model_name.startswith("ResNet") and dataset.startswith("cifar10"):
+        import model.cifar_resnet as cifar_resnet
+        if dataset == "cifar10":
+            num_classes = 10
+        elif dataset == "cifar100":
+            num_classes = 100
+        else:
+            raise ValueError(f"{dataset} is not supported.")
+        model = cifar_resnet.__dict__[model_name](num_classes=num_classes, bn_type=bn_type)
     else:
         raise ValueError(f"unknown model name: {model_name}")
     return model

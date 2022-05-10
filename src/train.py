@@ -92,25 +92,10 @@ def train(save_path: str,
     # initialize the res_dict
     total_res_dict = {
         "train_loss": [],
-        "train_ridge_loss": [],
         "train_acc": [],
-        "cosine": [],
         "test_loss": [],
         "test_acc": [],
     }
-    # add the hook things
-    bn_layers = {
-        "classifier.1": model.classifier[1],
-    }
-    forward_hook_inputs = {}
-    forward_handles = {}
-    for layer_name, module in bn_layers.items():
-        def register_hook(module, layer_name):
-            def hook(module, input, output):
-                assert len(input) == 1, f"the input length should be 1, but got {len(input)}"
-                forward_hook_inputs[layer_name] = input[0].clone().detach()
-            forward_handles[layer_name] = module.register_forward_hook(hook)
-        register_hook(module, layer_name)
     # save the initial model
     torch.save(model.state_dict(), os.path.join(save_path, f"model_init.pt"))
     for epoch in range(1, epochs+1):
@@ -119,14 +104,12 @@ def train(save_path: str,
         train_batches = create_batches(trainset, batch_size, epoch + seed, method)
         # train the model
         model.train()
-        train_losses, train_ridge_losses, train_acc = [], [], 0
+        train_losses, train_acc = [], 0
         for batch_idx, (inputs, labels) in enumerate(tqdm(train_batches)):
             # set the inputs to device
             inputs, labels = inputs.to(device), labels.to(device)
             # set the outputs
             outputs = model(inputs)
-            # set the ridge losses
-            ridge_losses = torch.norm(forward_hook_inputs["classifier.1"], p='fro', dim=(-1)) ** 2 
             # set the loss
             losses = loss_fn(outputs, labels)
             loss = torch.mean(losses)
@@ -138,36 +121,16 @@ def train(save_path: str,
             optimizer.step()    
             # set the loss and accuracy
             train_losses.extend(losses.cpu().detach().numpy())
-            train_ridge_losses.extend(ridge_losses.cpu().detach().numpy())
             train_acc += (outputs.max(1)[1] == labels).sum().item()
-            # save the bn running_mean and running_var
-            for name, module in bn_layers.items():
-                bn_param_path = os.path.join(save_path, "bn_params", f"{name}")
-                os.makedirs(bn_param_path, exist_ok=True)
-                try:
-                    torch.save(module.running_mean, os.path.join(bn_param_path, f"epoch{epoch}_batch{batch_idx}_mean.pth"))
-                    torch.save(module.running_var, os.path.join(bn_param_path, f"epoch{epoch}_batch{batch_idx}_var.pth"))
-                except:
-                    bn_layers = {}
-                    break
+
         # print the train loss and accuracy
         train_loss = np.mean(train_losses)
-        train_ridge_loss = np.mean(train_ridge_losses)
         train_acc /= len(trainset)
-        logger.info(f"train loss: {train_loss}; ridge loss: {train_ridge_loss}; train accuracy: {train_acc}")
+        logger.info(f"train loss: {train_loss}; train accuracy: {train_acc}")
 
         # evaluatioin
         model.eval()
         with torch.no_grad():
-            # calculate the cosine
-            inputs, labels = next(iter(DataLoader(testset, batch_size=batch_size, shuffle=False)))
-            inputs, labels = inputs.to(device), labels.to(device)
-            outputs = model(inputs)
-            features = forward_hook_inputs["classifier.1"]
-            assert len(features.shape) == 2, "the features should be a 2-D tensor"
-            cosine = torch.cosine_similarity(features[:-1], features[1:], dim = 1).mean().item()
-            logger.info("cosine: {}".format(cosine))
-
             # testset
             test_losses, test_acc = [], 0
             testloader = DataLoader(testset, batch_size=batch_size)
@@ -189,9 +152,7 @@ def train(save_path: str,
         # update res_dict
         res_dict = {
             "train_loss": [train_loss],
-            "train_ridge_loss": [train_ridge_loss],
             "train_acc": [train_acc],
-            "cosine": [cosine],
             "test_loss": [test_loss],
             "test_acc": [test_acc],
         }
@@ -203,7 +164,3 @@ def train(save_path: str,
                        os.path.join(save_path, f"model_{epoch}.pt"))
             res_df = pd.DataFrame.from_dict(total_res_dict)
             res_df.to_csv(os.path.join(save_path, "train.csv"), index = False)
-
-    # remove the forward hook
-    for handle in forward_handles.values():
-        handle.remove()
