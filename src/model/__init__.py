@@ -26,9 +26,9 @@ def prepare_model(model_name: str,
         elif model_name.startswith("ResNet"):
             import model.cifar_resnet as cifar_resnet
             model = cifar_resnet.__dict__[model_name](num_classes=num_classes, bn_type=bn_type)
-        elif model_name == "densenet_cifar":
+        elif model_name == "densenet_cifar" or model_name.startswith("DenseNet"):
             import model.cifar_densenet as cifar_densenet
-            model = cifar_densenet.densenet_cifar(bn_type=bn_type)
+            model = cifar_densenet.__dict__[model_name](bn_type=bn_type)
         else:
             raise ValueError(f"unknown model name: {model_name} for dataset {dataset}")
     else:

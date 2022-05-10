@@ -101,23 +101,23 @@ class DenseNet(nn.Module):
         out = self.linear(out) # (N, num_classes)
         return out
 
-def DenseNet121():
-    return DenseNet(Bottleneck, [6,12,24,16], growth_rate=32)
+def DenseNet121(bn_type: str='bn'):
+    return DenseNet(Bottleneck, [6,12,24,16], growth_rate=32, bn_type=bn_type)
 
-def DenseNet169():
-    return DenseNet(Bottleneck, [6,12,32,32], growth_rate=32)
+# def DenseNet169():
+#     return DenseNet(Bottleneck, [6,12,32,32], growth_rate=32)
 
-def DenseNet201():
-    return DenseNet(Bottleneck, [6,12,48,32], growth_rate=32)
+# def DenseNet201():
+#     return DenseNet(Bottleneck, [6,12,48,32], growth_rate=32)
 
-def DenseNet161():
-    return DenseNet(Bottleneck, [6,12,36,24], growth_rate=48)
+# def DenseNet161():
+#     return DenseNet(Bottleneck, [6,12,36,24], growth_rate=48)
 
-def densenet_cifar(bn_type: str='bn'):
-    return DenseNet(Bottleneck, [6,12,24,16], growth_rate=12, bn_type=bn_type)
+# def densenet_cifar(bn_type: str='bn'):
+#     return DenseNet(Bottleneck, [6,12,24,16], growth_rate=12, bn_type=bn_type)
 
 def test():
-    net = densenet_cifar()
+    net = DenseNet121()
     print(net)
     x = torch.randn(1,3,32,32)
     y = net(x)
