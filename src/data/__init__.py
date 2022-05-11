@@ -13,9 +13,9 @@ def prepare_dataset(dataset: str,
     Returns:
         trainset and testset
     """
-    if dataset == "cifar10":
-        import data.cifar10 as cifar10
-        trainset, testset = cifar10.load(root)
+    if dataset == "mnist":
+        import data.mnist as mnist
+        trainset, testset = mnist.load(root)
     else:
         raise NotImplementedError(f"dataset {dataset} is not implemented.")
     return trainset, testset

@@ -27,23 +27,23 @@ def add_args() -> argparse.Namespace:
                         help='the path of saving results.')
     parser.add_argument("--resume_path", default=None, type=str,
                         help='the path of pretrained model.')
-    parser.add_argument("--dataset", default="cifar10", type=str,
+    parser.add_argument("--dataset", default="mnist", type=str,
                         help='the dataset name.')
-    parser.add_argument("--method", default="random", type=str,
-                        help='the method to train')
-    parser.add_argument("--model", default="vgg11", type=str,
+    parser.add_argument("--pos", default=1, type=int,
+                        help="the postive label in two-cat classificiation problem")
+    parser.add_argument("--neg", default=0, type=int,
+                        help="the postive label in two-cat classificiation problem")
+    parser.add_argument("--model", default="lenet5", type=str,
                         help='the model name.')
-    parser.add_argument("--bn_type", default="none", type=str,
-                        help='the Batch normalizaition type.')
     parser.add_argument('--epochs', default=100, type=int,
                         help="set epoch number")
     parser.add_argument("--lr", default=0.01, type=float,
                         help="set the learning rate.")
     parser.add_argument("--bs", default=128, type=int,
                         help="set the batch size")
-    parser.add_argument("--wd", default=0.01, type=float,
+    parser.add_argument("--wd", default=0.0, type=float,
                         help="set the weight decay")
-    parser.add_argument("--momentum", default=0.9, type=float,
+    parser.add_argument("--momentum", default=0, type=float,
                         help="set the momentum rate")    
     # set if using debug mod
     parser.add_argument("-v", "--verbose", action="store_true", dest="verbose",
@@ -58,9 +58,8 @@ def add_args() -> argparse.Namespace:
                          MOMENT,
                          f"seed{args.seed}",
                          f"{args.dataset}",
+                         f"{args.pos}And{args.neg}",
                          f"{args.model}",
-                         f"bn_{args.bn_type}",
-                         f"{args.method}",
                          f"epochs{args.epochs}",
                          f"lr{args.lr}",
                          f"bs{args.bs}",
@@ -99,11 +98,13 @@ def main():
 
     # prepare the model
     logger.info("#########preparing model....")
-    model = prepare_model(args.model, args.dataset, args.bn_type)
+    model = prepare_model(args.model, args.dataset)
     if args.resume_path:
         logger.info(f"load the pretrained model from {args.resume_path}")
         model.load_state_dict(torch.load(args.resume_path))
     logger.info(model)
+
+    exit(0)
 
     # train the model
     logger.info("#########training model....")
