@@ -10,6 +10,7 @@ from tqdm import tqdm
 
 # import internal libs
 from utils import get_logger
+from config import SIGMA
 
 def create_batches(dataset: Dataset,
                    batch_size: int,
@@ -63,17 +64,17 @@ def extra_loss(device: torch.device,
         extra_losses = torch.zeros(N, device=device)
     elif loss_type == 2:
         np.random.seed(seed+loss_type)
-        g = np.random.randn(D)
+        g = np.random.randn(D) * SIGMA
         g = torch.from_numpy(g).double().to(device)
         extra_losses = torch.matmul(y, g.unsqueeze(-1)).view(N) # with shape of (N, )
     elif loss_type == 3:
         np.random.seed(seed+loss_type)
-        H_diag = np.random.randn(1, D)
+        H_diag = np.random.randn(1, D) * SIGMA
         H_diag = torch.from_numpy(H_diag).double().to(device)
         extra_losses = torch.bmm(y.view(N, 1, D), (H_diag * y).view(N, D, 1)).view(N) # with shape of (N, )
     elif loss_type == 4:
         np.random.seed(seed+loss_type)
-        H_off = np.random.randn(D, D)
+        H_off = np.random.randn(D, D) * SIGMA
         H_off = torch.from_numpy(H_off).double().to(device)
         H_off.fill_diagonal_(0)
         extra_losses = torch.bmm(torch.matmul(y, H_off).view(N, 1, D), y.view(N, D, 1)).view(N) # with shape of (N, )
@@ -189,10 +190,16 @@ def train(save_path: str,
     res_df.to_csv(os.path.join(save_path, "loss.csv"), index = False)
     # the gradient ting
     for layer_name, grad_lst in grad_dict.items():
-        # cat the gradients
-        grad_lst = torch.cat(grad_lst, dim=0)
+        grad_ravel_lst = []
+        for bs_id, grad in enumerate(grad_lst):
+            # save the gradients
+            torch.save(grad, os.path.join(save_path, f"{layer_name}_grads_bs{bs_id}.pt"))
+            # ravel the gradients
+            grad_ravel_lst.append(grad.view(-1))
+        # cat
+        grad_ravel = torch.cat(grad_ravel_lst, dim=0)
         # save the gradients
-        torch.save(grad_lst, os.path.join(save_path, f"{layer_name}_grads.pt"))
+        torch.save(grad_ravel, os.path.join(save_path, f"{layer_name}_grads_ravel.pt"))
 
     # remove the forward hook
     for handle in forward_handles.values():
