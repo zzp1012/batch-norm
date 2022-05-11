@@ -65,7 +65,7 @@ def extra_loss(device: torch.device,
         np.random.seed(seed+loss_type)
         g = np.random.randn(D)
         g = torch.from_numpy(g).double().to(device)
-        extra_losses = torch.matmul(y, g) # with shape of (N, )
+        extra_losses = torch.matmul(y, g.unsqueeze(-1)).view(N) # with shape of (N, )
     elif loss_type == 3:
         np.random.seed(seed+loss_type)
         H_diag = np.random.randn(1, D)
