@@ -12,3 +12,4 @@ model/
 .vscode/
 # ignore temp-run.sh
 *.sh
+*.slurm
