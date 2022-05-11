@@ -29,12 +29,12 @@ class AlexNet(nn.Module):
             nn.Dropout(inplace=False),
             nn.Linear(256 * 2 * 2, 4096),
             nn.ReLU(inplace=False),
-        )
-        self.bn = nn.BatchNorm1d(4096, affine=False)
-        self.after_bn = nn.Sequential(
             nn.Dropout(inplace=False),
             nn.Linear(4096, 4096),
             nn.ReLU(inplace=False),
+        )
+        self.bn = nn.BatchNorm1d(4096, affine=False)
+        self.after_bn = nn.Sequential(
             nn.Linear(4096, num_classes),
         )
 
