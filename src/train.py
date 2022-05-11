@@ -14,14 +14,16 @@ from utils import get_logger, update_dict
 def create_batches(dataset: Dataset,
                    batch_size: int,
                    seed: int,
-                   method: str) -> list:
+                   pos_lbl: int,
+                   neg_lbl: int,) -> list:
     """create the batches
 
     Args:
         dataset: the dataset
         batch_size: the batch size
         seed: the seed
-        method: the method to create batches
+        pos_lbl: the label of positive samples.
+        neg_lbl: the label of negative samples.
 
     Return:
         the batches
@@ -31,18 +33,13 @@ def create_batches(dataset: Dataset,
     inputs, labels = next(iter(DataLoader(dataset, batch_size=len(dataset))))
     logger.debug(f"inputs shape: {inputs.shape}; labels shape: {labels.shape}")
     # create the indices
-    if method == "random":
-        indices = np.arange(len(dataset))
-        random.Random(seed).shuffle(indices)
-        batch_indices = np.array_split(indices, len(dataset) // batch_size)
-    elif method == "label":
-        batch_indices = []
-        for i, label in enumerate(range(len(dataset.classes))):
-            indices = np.where(labels == label)[0]
-            random.Random(seed + i).shuffle(indices)
-            batch_indices.append(np.array_split(indices, len(indices) // batch_size))
-        batch_indices = np.array(batch_indices)
-        batch_indices = batch_indices.T.ravel()
+    indices = np.where((labels == neg_lbl) | (labels == pos_lbl))[0]
+    random.Random(seed).shuffle(indices)
+    batch_indices = np.array_split(indices, len(indices) // batch_size)
+    # make pos lablels to be 1
+    labels[labels == pos_lbl] = 1
+    # make neg lablels to be 0
+    labels[labels == neg_lbl] = 0
     # create the batches
     batches = []
     for idx in batch_indices:
@@ -55,13 +52,14 @@ def train(save_path: str,
           model: nn.Module,
           trainset: Dataset,
           testset: Dataset,
+          pos_lbl: int,
+          neg_lbl: int,
           epochs: int,
           lr: float,
           batch_size: int,
           weight_decay: float,
           momentum: float,
-          seed: int,
-          method: str = "random") -> NoReturn:
+          seed: int) -> NoReturn:
     """train the model
 
     Args:
@@ -70,6 +68,8 @@ def train(save_path: str,
         model: the model to train
         trainset: the train dataset
         testset: the test dataset
+        pos_lbl: the label of positive samples.
+        neg_lbl: the label of negative samples.
         epochs: the epochs number
         lr: the learning rate
         batch_size: the batch size
@@ -87,8 +87,10 @@ def train(save_path: str,
     # set the optimizer
     optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), 
                                 lr=lr, weight_decay=weight_decay, momentum=momentum)
+    # create test batches
+    test_batches = create_batches(testset, batch_size, seed, pos_lbl, neg_lbl)
     # set the loss function
-    loss_fn = nn.CrossEntropyLoss(reduction="none")
+    loss_fn = torch.nn.BCEWithLogitsLoss(reduction='none')
     # initialize the res_dict
     total_res_dict = {
         "train_loss": [],
@@ -100,18 +102,19 @@ def train(save_path: str,
     torch.save(model.state_dict(), os.path.join(save_path, f"model_init.pt"))
     for epoch in range(1, epochs+1):
         logger.info(f"######Epoch - {epoch}")
-        # create the batches for train
-        train_batches = create_batches(trainset, batch_size, epoch + seed, method)
         # train the model
         model.train()
         train_losses, train_acc = [], 0
+        # create the batches for train
+        train_batches = create_batches(trainset, batch_size, epoch + seed, pos_lbl, neg_lbl)
         for batch_idx, (inputs, labels) in enumerate(tqdm(train_batches)):
             # set the inputs to device
-            inputs, labels = inputs.to(device), labels.to(device)
+            inputs, labels = inputs.to(device), labels.float().to(device)
             # set the outputs
-            outputs = model(inputs)
+            logits = model(inputs) # (N, 1)
+            logits = logits.view(logits.shape[0]) # (N,)
             # set the loss
-            losses = loss_fn(outputs, labels)
+            losses = loss_fn(logits, labels)
             loss = torch.mean(losses)
             # set zero grad
             optimizer.zero_grad()
@@ -121,11 +124,11 @@ def train(save_path: str,
             optimizer.step()    
             # set the loss and accuracy
             train_losses.extend(losses.cpu().detach().numpy())
-            train_acc += (outputs.max(1)[1] == labels).sum().item()
+            train_acc += (torch.round(torch.sigmoid(logits)) == labels).sum().item() # torch.round(0.5) = 0
 
         # print the train loss and accuracy
         train_loss = np.mean(train_losses)
-        train_acc /= len(trainset)
+        train_acc /= len(train_losses)
         logger.info(f"train loss: {train_loss}; train accuracy: {train_acc}")
 
         # evaluatioin
@@ -133,20 +136,20 @@ def train(save_path: str,
         with torch.no_grad():
             # testset
             test_losses, test_acc = [], 0
-            testloader = DataLoader(testset, batch_size=batch_size)
-            for inputs, labels in tqdm(testloader):
+            for inputs, labels in tqdm(test_batches):
                 # set the inputs to device
-                inputs, labels = inputs.to(device), labels.to(device)
+                inputs, labels = inputs.to(device), labels.float().to(device)
                 # set the outputs
-                outputs = model(inputs)
+                logits = model(inputs)
+                logits = logits.view(logits.shape[0])
                 # set the loss
-                losses = loss_fn(outputs, labels)
+                losses = loss_fn(logits, labels)
                 # set the loss and accuracy
                 test_losses.extend(losses.cpu().detach().numpy())
-                test_acc += (outputs.max(1)[1] == labels).sum().item()
+                test_acc += (torch.round(torch.sigmoid(logits)) == labels).sum().item() # torch.round(0.5) = 0
         # print the test loss and accuracy
         test_loss = np.mean(test_losses)
-        test_acc /= len(testset)
+        test_acc /= len(test_losses)
         logger.info(f"test loss: {test_loss}; test accuracy: {test_acc}")
 
         # update res_dict

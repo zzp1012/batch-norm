@@ -104,8 +104,6 @@ def main():
         model.load_state_dict(torch.load(args.resume_path))
     logger.info(model)
 
-    exit(0)
-
     # train the model
     logger.info("#########training model....")
     train(save_path = os.path.join(args.save_path, "exp"),
@@ -113,13 +111,14 @@ def main():
           model = model,
           trainset = trainset,
           testset = testset,
+          pos_lbl = args.pos,
+          neg_lbl = args.neg,
           epochs = args.epochs,
           lr = args.lr,
           batch_size = args.bs,
           weight_decay = args.wd,
           momentum = args.momentum,
-          seed = args.seed,
-          method = args.method)
+          seed = args.seed)
 
 if __name__ == "__main__":
     main()
