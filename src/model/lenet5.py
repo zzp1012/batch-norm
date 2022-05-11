@@ -19,6 +19,7 @@ class LeNet5(nn.Module):
         # an affine operation: y = Wx + b
         self.before_bn = nn.Sequential(
             nn.Linear(16 * 5 * 5, 120),  # 6*6 from image dimension
+            nn.BatchNorm1d(120),
         )
         self.after_bn = nn.Sequential(
             nn.ReLU(),
