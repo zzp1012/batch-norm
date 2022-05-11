@@ -197,7 +197,7 @@ def train(save_path: str,
             # ravel the gradients
             grad_ravel_lst.append(grad.view(-1))
         # cat
-        grad_ravel = torch.cat(grad_ravel_lst, dim=0)
+        grad_ravel = torch.stack(grad_ravel_lst, dim=0)
         # save the gradients
         torch.save(grad_ravel, os.path.join(save_path, f"{layer_name}_grads_ravel.pt"))
 
