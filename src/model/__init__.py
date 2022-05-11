@@ -17,9 +17,9 @@ def prepare_model(model_name: str,
     logger = get_logger(__name__)
     logger.info(f"prepare the {model_name} model for dataset {dataset}")
     if dataset == "mnist":
-        if model_name == ("lenet5"):
-            from model.lenet5 import LeNet5
-            model = LeNet5()
+        if model_name == "AlexNet":
+            from model.alexnet import AlexNet
+            model = AlexNet()
         else:
             raise ValueError(f"unknown model name: {model_name} for dataset {dataset}")
     else:

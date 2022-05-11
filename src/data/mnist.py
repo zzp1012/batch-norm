@@ -18,6 +18,7 @@ def load(root: str = "../data") -> Tuple[Dataset, Dataset]:
 
     # prepare the transform
     transform=transforms.Compose([
+        transforms.Resize(32),
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,))
     ])
