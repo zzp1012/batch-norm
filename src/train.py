@@ -190,16 +190,9 @@ def train(save_path: str,
     res_df.to_csv(os.path.join(save_path, "loss.csv"), index = False)
     # the gradient ting
     for layer_name, grad_lst in grad_dict.items():
-        grad_ravel_lst = []
         for bs_id, grad in enumerate(grad_lst):
             # save the gradients
             torch.save(grad, os.path.join(save_path, f"{layer_name}_grads_bs{bs_id}.pt"))
-            # ravel the gradients
-            grad_ravel_lst.append(grad.view(-1))
-        # cat
-        grad_ravel = torch.stack(grad_ravel_lst, dim=0)
-        # save the gradients
-        torch.save(grad_ravel, os.path.join(save_path, f"{layer_name}_grads_ravel.pt"))
 
     # remove the forward hook
     for handle in forward_handles.values():
