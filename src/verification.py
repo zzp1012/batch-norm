@@ -17,11 +17,10 @@ from config import DATE, MOMENT, SRC_PATH
 class Net(nn.Module):
     def __init__(self, 
                  d: int,) -> NoReturn:
-        """simple net, include a linear layer and BN(if isBN is True)
+        """simple net, include a linear layer and BN
 
         Args:
             d (int): the dimension of input.
-            isBN (bool): if use BN.
         
         Return:
             None
@@ -49,8 +48,7 @@ class Net(nn.Module):
 def loss_fn(y: torch.Tensor,
             loss_id: int,
             max_order: int,
-            params: torch.Tensor,
-            ) -> torch.Tensor:
+            params: torch.Tensor) -> torch.Tensor:
     """loss function
 
     Args:
@@ -64,64 +62,76 @@ def loss_fn(y: torch.Tensor,
     """
     assert len(params) == max_order+1,'does not match the shape'
     assert loss_id <= max_order + 1 and loss_id >= 1,'wrong loss id'
-    losses = params[max_order] * torch.pow(y,max_order)
+    losses = params[max_order] * torch.pow(y, max_order)
     for i in range(max_order-1,loss_id-2,-1):
         losses += params[i] * torch.pow(y,i)
     loss = torch.sum(losses)
     return loss
 
 def test(device: torch.device,
-        save_path: str,
-        model: Net,
-        inputs: float,
-        itrs: int,
-        max_order: int,
-        )-> NoReturn:
+         save_path: str,
+         model: Net,
+         inputs: float,
+         itrs: int,
+         max_order: int)-> NoReturn:
+    """calculate the x_grad for each loss function
 
-        logger = get_logger("test")
-        if not os.path.exists(save_path):
-            os.makedirs(save_path)
-        
-        # put model and input on device
-        model = model.to(device)
-        inputs = inputs.to(device)
-        #hook
-        x_grads = []
-        def get_grads(module, grad_input, grad_output):
-            x_grads.append(grad_output[0].clone().detach().cpu().numpy())
-        hook = model.main[0].register_backward_hook(get_grads)
+    Args:
+        device: torch.device, the GPU to be used
+        save_path: the save path for results
+        model: Net
+        inputs: float
+        iter: the number of groups of loss functions
+        max_order: the maximum order of the loss function
 
-        #register the grad and lamdas
-        grads_list = []
-        params_list = []
-        # set the model to train mode
-        model.train()
-        # begin sample lamda
-        for itr in tqdm(range(itrs)):
-            params = torch.randn(max_order + 1)
-            params_list.append(params.clone().detach().cpu().numpy())
-            grads_piece = []
-            # begin cal different loss id
-            for loss_id in range(1,max_order + 2):
-                #forward
-                model.zero_grad()
-                y = model(inputs)
-                loss = loss_fn(y,loss_id,max_order,params)
-                #backward
-                loss.backward()
-                #register a piece
-                grads_piece.append(x_grads[-1])
-                assert len(x_grads) == 1,'wrong grads len'
-                del x_grads[0]
-            #regiter a set
-            grads_list.append(np.array(grads_piece))
-        # remove the hook
-        hook.remove()
-        # save the data
-        torch.save(inputs.detach(), os.path.join(save_path, "inputs.pt"))
-        torch.save(model.main[0].weight.detach(),os.path.join(save_path, "weights.pt"))
-        np.save(os.path.join(save_path, f"x_grads.npy"), np.array(grads_list))
-        np.save(os.path.join(save_path, f"params.npy"), np.array(params_list))
+    Return:
+        None
+    """
+    logger = get_logger("test")
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+    
+    # put model and input on device
+    model = model.to(device)
+    inputs = inputs.to(device)
+    
+    # hook
+    x_grads = []
+    def get_grads(module, grad_input, grad_output):
+        x_grads.append(grad_output[0].clone().detach().cpu().numpy())
+    hook = model.main[0].register_backward_hook(get_grads)
+
+    # register the grad and lamdas
+    grads_list = []
+    params_list = []
+    # set the model to train mode
+    model.train()
+    # begin sample lamda
+    for itr in tqdm(range(itrs)):
+        params = torch.randn(max_order + 1)
+        params_list.append(params.clone().detach().cpu().numpy())
+        grads_piece = []
+        # begin cal different loss id
+        for loss_id in range(1, max_order + 2):
+            # forward
+            model.zero_grad()
+            y = model(inputs)
+            loss = loss_fn(y, loss_id, max_order, params)
+            # backward
+            loss.backward()
+            # register a piece
+            grads_piece.append(x_grads[-1])
+            assert len(x_grads) == 1,'wrong grads len'
+            del x_grads[0]
+        # regiter a set
+        grads_list.append(np.array(grads_piece))
+    # remove the hook
+    hook.remove()
+    # save the data
+    torch.save(inputs.detach(), os.path.join(save_path, "inputs.pt"))
+    torch.save(model.main[0].weight.detach(),os.path.join(save_path, "weights.pt"))
+    np.save(os.path.join(save_path, f"x_grads.npy"), np.array(grads_list))
+    np.save(os.path.join(save_path, f"params.npy"), np.array(params_list))
 
 # generate random tensor, called Z of shape (n, d)
 def generate_Z(n: int, 
@@ -215,8 +225,7 @@ def main():
           model = model,
           inputs = inputs,
           itrs= args.itrs,
-          max_order=args.max_order,
-          )
+          max_order=args.max_order)
 
 if __name__ == "__main__":
     main()
