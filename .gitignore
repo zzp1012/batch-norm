@@ -13,3 +13,5 @@ model/
 # ignore temp-run.sh
 *.sh
 *.slurm
+*.err
+*.out
