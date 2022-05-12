@@ -104,8 +104,8 @@ class DenseNet(nn.Module):
 def DenseNet121(bn_type: str='bn'):
     return DenseNet(Bottleneck, [6,12,24,16], growth_rate=32, bn_type=bn_type)
 
-# def DenseNet169():
-#     return DenseNet(Bottleneck, [6,12,32,32], growth_rate=32)
+def DenseNet169(bn_type: str='bn'):
+    return DenseNet(Bottleneck, [6,12,32,32], growth_rate=32, bn_type=bn_type)
 
 # def DenseNet201():
 #     return DenseNet(Bottleneck, [6,12,48,32], growth_rate=32)

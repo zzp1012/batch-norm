@@ -130,8 +130,8 @@ def ResNet18(num_classes: int=10, bn_type: str="bn"):
     return ResNet(BasicBlock, [2, 2, 2, 2], num_classes, bn_type)
 
 # not for current usage
-# def ResNet34():
-#     return ResNet(BasicBlock, [3, 4, 6, 3])
+def ResNet34(num_classes: int=10, bn_type: str="bn"):
+    return ResNet(BasicBlock, [3, 4, 6, 3], num_classes, bn_type)
 
 
 # def ResNet50():
