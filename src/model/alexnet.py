@@ -26,15 +26,15 @@ class AlexNet(nn.Module):
             nn.MaxPool2d(kernel_size=2),
         )
         self.before_bn = nn.Sequential(
-            nn.Dropout(inplace=False),
+        )
+        self.bn = nn.BatchNorm1d(1024, affine=False, eps=1e-10)
+        self.after_bn = nn.Sequential(
+            # nn.Dropout(inplace=False),
             nn.Linear(256 * 2 * 2, 4096),
             nn.ReLU(inplace=False),
-            nn.Dropout(inplace=False),
+            # nn.Dropout(inplace=False),
             nn.Linear(4096, 4096),
             nn.ReLU(inplace=False),
-        )
-        self.bn = nn.BatchNorm1d(4096, affine=False)
-        self.after_bn = nn.Sequential(
             nn.Linear(4096, num_classes),
         )
 
