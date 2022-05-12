@@ -31,8 +31,8 @@ def add_args() -> argparse.Namespace:
                         help='the dataset name.')
     parser.add_argument("--model", default="vgg11", type=str,
                         help='the model name.')
-    parser.add_argument("--loss", default=1, type=int, choices=[1, 2, 3, 4],
-                        help="set the loss function")
+    parser.add_argument("--method", default="random", type=str,
+                        help='the method to create batches.')
     parser.add_argument("--bs", default=128, type=int,
                         help="set the batch size")
     # set if using debug mod
@@ -49,7 +49,7 @@ def add_args() -> argparse.Namespace:
                          f"seed{args.seed}",
                          f"{args.dataset}",
                          f"{args.model}",
-                         f"loss{args.loss}",
+                         f"{args.method}",
                          f"bs{args.bs}",])
     args.save_path = os.path.join(args.save_root, exp_name)
     if not os.path.exists(args.save_path):
@@ -92,12 +92,12 @@ def main():
 
     # train the model
     logger.info("#########training model....")
-    train(save_path = os.path.join(args.save_path, "exp2"),
+    train(save_path = os.path.join(args.save_path, "figure1"),
           device = args.device,
           model = model,
           testset = testset,
-          loss_type = args.loss,
           batch_size = args.bs,
+          method = args.method,
           seed = args.seed)
 
 if __name__ == "__main__":
