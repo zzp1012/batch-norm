@@ -29,6 +29,14 @@ class Net(nn.Module):
 
         # define the linear layer
         self.main = nn.Sequential(
+            nn.Linear(d, d),
+            nn.ReLU(),
+            nn.Linear(d, d),
+            nn.ReLU(),
+            nn.Linear(d, d),
+            nn.ReLU(),
+            nn.Linear(d, d),
+            nn.ReLU(),
             nn.Linear(d, 1), # (N, d) -> (N, 1)
             nn.BatchNorm1d(1,eps=0, affine=False) # (N, 1) -> (N, 1)
         )
