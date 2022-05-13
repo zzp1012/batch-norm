@@ -1,16 +1,14 @@
 import os
 import argparse
-from requests import delete
 import torch
 import torch.nn as nn
 import numpy as np
-import pandas as pd
 from typing import NoReturn
 from tqdm import tqdm
 
 # import internal libs
 from utils import set_logger, get_logger, set_seed, set_device, \
-    log_settings, save_current_src, update_dict
+    log_settings, save_current_src
 from config import DATE, MOMENT, SRC_PATH
 
 # define the forward pass of the network
@@ -52,6 +50,7 @@ class Net(nn.Module):
         """
         return self.main(z)
 
+
 # define the loss function
 def loss_fn(y: torch.Tensor,
             loss_id: int,
@@ -75,6 +74,7 @@ def loss_fn(y: torch.Tensor,
         losses += params[i] * torch.pow(y,i)
     loss = torch.sum(losses)
     return loss
+
 
 def test(device: torch.device,
          save_path: str,
@@ -107,7 +107,8 @@ def test(device: torch.device,
     x_grads = []
     def get_grads(module, grad_input, grad_output):
         x_grads.append(grad_output[0].clone().detach().cpu().numpy())
-    hook = model.main[0].register_backward_hook(get_grads)
+    hook = model.main[-2].register_backward_hook(get_grads)
+    print(model.main[-2])
 
     # register the grad and lamdas
     grads_list = []
@@ -141,12 +142,13 @@ def test(device: torch.device,
     np.save(os.path.join(save_path, f"x_grads.npy"), np.array(grads_list))
     np.save(os.path.join(save_path, f"params.npy"), np.array(params_list))
 
+
 # generate random tensor, called Z of shape (n, d)
 def generate_Z(n: int, 
                d: int,):
     """generate random tensor, called Z of shape (n, d)"""
     logger = get_logger("generate_Z")
-    Z = torch.randn(n,d,dtype=torch.float32)
+    Z = torch.randn(n, d, dtype=torch.float32)
     logger.info(f"Z shape: {Z.shape}; max: {Z.max()}; min: {Z.min()}")
     return Z
 
@@ -189,8 +191,7 @@ def add_args() -> argparse.Namespace:
                          f"sample_num{args.sample_num}",
                          f"input_dim{args.input_dim}",
                          f"itrs{args.itrs}",
-                         f"max_orger{args.max_order}",
-                         ])
+                         f"max_order{args.max_order}"])
     args.save_path = os.path.join(args.save_root, exp_name)
     if not os.path.exists(args.save_path):
         os.makedirs(args.save_path)

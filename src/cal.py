@@ -1,7 +1,7 @@
 import numpy as np
 import os 
 
-grads_path = '/lustre/home/acct-eezqs/eezqs/zzp1012/batch-norm-exp3/outs/0511/exp3/0511-125633-seed0-sample_num100-input_dim10-itrs1000-max_orger4/exp/x_grads.npy'
+grads_path = '/data2/zzp1012/batch-norm-exp3/outs/0511/exp3/0511-125633-seed0-sample_num100-input_dim10-itrs1000-max_orger4/exp/x_grads.npy'
 max_order = 4
 itrs = 1000
 
@@ -19,5 +19,5 @@ if __name__ == '__main__':
         # calculate the base loss grad's norm
         base_loss_grads_norm = np.linalg.norm(grads[:, i].reshape(itrs, -1), ord=2, axis=-1)
         relative_delta_grads_norm = delta_grads_norm / base_loss_grads_norm
-        print(f'delta{i+1} / loss0 - mean: {relative_delta_grads_norm.mean()}')
-        print(f'delta{i+1} / loss0 - std: {relative_delta_grads_norm.std()}')
+        print(f'delta{i+1} / loss{i} - mean: {relative_delta_grads_norm.mean()}')
+        print(f'delta{i+1} / loss{i} - std: {relative_delta_grads_norm.std()}')
