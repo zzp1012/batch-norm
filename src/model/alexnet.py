@@ -27,7 +27,7 @@ class AlexNet(nn.Module):
         )
         self.before_bn = nn.Sequential(
         )
-        self.bn = nn.BatchNorm1d(1024, affine=False, eps=1e-10)
+        self.bn = nn.BatchNorm1d(1024, eps=1e-5)
         self.after_bn = nn.Sequential(
             # nn.Dropout(inplace=False),
             nn.Linear(256 * 2 * 2, 4096),
