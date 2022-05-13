@@ -33,9 +33,9 @@ def add_args() -> argparse.Namespace:
                         help="the postive label in two-cat classificiation problem")
     parser.add_argument("--neg", default=0, type=int,
                         help="the postive label in two-cat classificiation problem")
-    parser.add_argument("--model", default="lenet5", type=str,
+    parser.add_argument("--model", default="AlexNet", type=str,
                         help='the model name.')
-    parser.add_argument('--epochs', default=100, type=int,
+    parser.add_argument('--epochs', default=10, type=int,
                         help="set epoch number")
     parser.add_argument("--lr", default=0.01, type=float,
                         help="set the learning rate.")
