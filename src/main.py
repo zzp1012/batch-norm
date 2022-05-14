@@ -29,10 +29,6 @@ def add_args() -> argparse.Namespace:
                         help='the path of pretrained model.')
     parser.add_argument("--dataset", default="mnist", type=str,
                         help='the dataset name.')
-    parser.add_argument("--pos", default=1, type=int,
-                        help="the postive label in two-cat classificiation problem")
-    parser.add_argument("--neg", default=0, type=int,
-                        help="the postive label in two-cat classificiation problem")
     parser.add_argument("--model", default="AlexNet", type=str,
                         help='the model name.')
     parser.add_argument('--epochs', default=10, type=int,
@@ -58,7 +54,6 @@ def add_args() -> argparse.Namespace:
                          MOMENT,
                          f"seed{args.seed}",
                          f"{args.dataset}",
-                         f"{args.pos}And{args.neg}",
                          f"{args.model}",
                          f"epochs{args.epochs}",
                          f"lr{args.lr}",
@@ -111,8 +106,6 @@ def main():
           model = model,
           trainset = trainset,
           testset = testset,
-          pos_lbl = args.pos,
-          neg_lbl = args.neg,
           epochs = args.epochs,
           lr = args.lr,
           batch_size = args.bs,

@@ -4,7 +4,7 @@ import torch.nn as nn
 '''
 modified to fit dataset size
 '''
-NUM_CLASSES = 1
+NUM_CLASSES = 10
 
 
 class AlexNet(nn.Module):
@@ -26,16 +26,16 @@ class AlexNet(nn.Module):
             nn.MaxPool2d(kernel_size=2),
         )
         self.before_bn = nn.Sequential(
-        )
-        self.bn = nn.BatchNorm1d(1024, eps=1e-5)
-        self.after_bn = nn.Sequential(
-            # nn.Dropout(inplace=False),
+            nn.Dropout(inplace=False),
             nn.Linear(256 * 2 * 2, 4096),
             nn.ReLU(inplace=False),
-            # nn.Dropout(inplace=False),
-            nn.Linear(4096, 4096),
+            nn.Dropout(inplace=False),
+            nn.Linear(4096, 20),
             nn.ReLU(inplace=False),
-            nn.Linear(4096, num_classes),
+        )
+        self.bn = nn.BatchNorm1d(20, eps=1e-5)
+        self.after_bn = nn.Sequential(
+            nn.Linear(20, num_classes),
         )
 
     def forward(self, x):

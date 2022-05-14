@@ -20,9 +20,7 @@ from config import DATE, MOMENT, SRC_PATH
 
 def create_batches(dataset: Dataset,
                    batch_size: int,
-                   seed: int,
-                   pos_lbl: int,
-                   neg_lbl: int,) -> list:
+                   seed: int) -> list:
     """create the batches
 
     Args:
@@ -41,19 +39,12 @@ def create_batches(dataset: Dataset,
     logger.debug(f"inputs shape: {inputs.shape}; labels shape: {labels.shape}")
     # create the indices
     batch_indices = []
-    repeat_num = 500
+    repeat_num = 100
     for itr in range(1, repeat_num+1):
         for i, label in enumerate(range(len(dataset.classes))):
-            if label == pos_lbl or label == neg_lbl:    
-                indices = np.where(labels == label)[0]
-                random.Random(seed + itr + i).shuffle(indices)
-                batch_indices.append(indices[:batch_size])
-            else:
-                continue
-    # make pos lablels to be 1
-    labels[labels == pos_lbl] = 1
-    # make neg lablels to be 0
-    labels[labels == neg_lbl] = 0
+            indices = np.where(labels == label)[0]
+            random.Random(seed + itr + i).shuffle(indices)
+            batch_indices.append(indices[:batch_size])
     # create the batches
     batches = []
     for idx in batch_indices:
@@ -66,8 +57,6 @@ def test(save_path: str,
          model: nn.Module,
          testset: Dataset,
          hessian_mat_dict: dict,
-         pos_lbl: int,
-         neg_lbl: int,
          batch_size: int,
          seed: int) -> NoReturn:
     """train the model
@@ -91,7 +80,7 @@ def test(save_path: str,
     # put the model to GPU or CPU
     model = model.to(device)
     # create test batches
-    test_batches = create_batches(testset, batch_size, seed, pos_lbl, neg_lbl)
+    test_batches = create_batches(testset, batch_size, seed)
     
     ## add the hook things
     # single forward one
@@ -109,7 +98,10 @@ def test(save_path: str,
         "Y_none_dot_y_d_norm": [],
         "Y_linear_norm": [],
         "Y_none_norm": [],
+        "H_off_dot_Y_linear_norm": [],
+        "H_off_dot_Y_none_norm": [],
     }  
+    
     # get the two loss terms
     for batch_idx, (inputs, labels) in enumerate(test_batches):
         logger.info(f"#####batch {batch_idx}")
@@ -117,11 +109,13 @@ def test(save_path: str,
         inputs, labels = inputs.to(device), labels.to(device)
         assert len(labels.unique()) == 1, "the labels should be the same"
         label = labels.unique().item()
+        logger.info(f"label: {label}")
         
-        model.train()
+        model.eval()
         with torch.no_grad():
             # set the outputs
-            _ = model(inputs) # (N, 1)
+            outputs = model(inputs) # (N, 1)
+            print((outputs.max(1)[1] == labels).float().mean().item())
             
             # get the features
             assert len(features) == 1, \
@@ -141,7 +135,7 @@ def test(save_path: str,
             none_zero_rows = torch.where(torch.sum(Y**2, dim=-1) != 0)[0]
             # record the list
             L_d_linear_lst, L_d_none_lst, Y_linear_dot_y_d_norm_lst, Y_none_dot_y_d_norm_lst, \
-                Y_linear_norm_lst, Y_none_norm_lst = [], [], [], [], [], []
+                Y_linear_norm_lst, Y_none_norm_lst, H_off_dot_Y_linear_norm_lst, H_off_dot_Y_none_norm_lst = [], [], [], [], [], [], [], []
             for d in tqdm(none_zero_rows):
                 # calculate quantities
                 y_d = Y[d, :] # (N, )
@@ -157,6 +151,10 @@ def test(save_path: str,
                 # get the partial loss
                 Y_linear_dot_y_d = torch.matmul(Y_linear, y_d.reshape(N, 1)) # (D, 1)
                 Y_none_dot_y_d = torch.matmul(Y_none, y_d.reshape(N, 1)) # (D, 1)
+
+                # get the gradient actually
+                H_off_dot_Y_linear = torch.matmul(H_off_d.reshape(1, D), Y_linear) # (1, D)
+                H_off_dot_Y_none = torch.matmul(H_off_d.reshape(1, D), Y_none) # (1, D)
                 
                 # calculate the two loss
                 L_d_linear = torch.matmul(H_off_d.reshape(1, D), Y_linear_dot_y_d) # (1, 1)
@@ -169,6 +167,8 @@ def test(save_path: str,
                 Y_none_dot_y_d_norm_lst.append(torch.norm(Y_none_dot_y_d, p=2).item())
                 Y_linear_norm_lst.append(torch.norm(Y_linear, p="fro").item())
                 Y_none_norm_lst.append(torch.norm(Y_none, p="fro").item())
+                H_off_dot_Y_linear_norm_lst.append(torch.norm(H_off_dot_Y_linear, p="fro").item())
+                H_off_dot_Y_none_norm_lst.append(torch.norm(H_off_dot_Y_none, p="fro").item())
 
             # save the results
             loss_dict["L_d_linear"].append(np.mean(L_d_linear_lst))
@@ -177,6 +177,8 @@ def test(save_path: str,
             loss_dict["Y_none_dot_y_d_norm"].append(np.mean(Y_none_dot_y_d_norm_lst))
             loss_dict["Y_linear_norm"].append(np.mean(Y_linear_norm_lst))
             loss_dict["Y_none_norm"].append(np.mean(Y_none_norm_lst))
+            loss_dict["H_off_dot_Y_linear_norm"].append(np.mean(H_off_dot_Y_linear_norm_lst))
+            loss_dict["H_off_dot_Y_none_norm"].append(np.mean(H_off_dot_Y_none_norm_lst))
     
     # save the gradients
     loss_df = pd.DataFrame.from_dict(loss_dict)
@@ -187,7 +189,8 @@ def test(save_path: str,
 
 
 def get_hessian(model: nn.Module,
-                device: torch.device):
+                device: torch.device,
+                dataset: torch.utils.data.Dataset,):
     """the model could calculate the hessian matrix.
 
     Args:
@@ -203,24 +206,23 @@ def get_hessian(model: nn.Module,
     # get the input shape of after_bn
     _, D = model.after_bn[0].weight.shape
     # make the input
-    x = torch.zeros(D).to(device)
+    x = torch.zeros(1, D).to(device)
     
     # calculate the hessian
     hessian_mat_dict = dict()
-    for lbl in [0., 1.]:
+    for lbl in range(len(dataset.classes)):
         def model_with_loss(x):
             """the model with loss.
             """
             y_hat = model.after_bn(x)
-            y_hat = y_hat.reshape(y_hat.shape[0])
             y = torch.tensor([lbl]).to(device)
-            loss = nn.BCEWithLogitsLoss(reduction="none")(y_hat, y)
+            loss = nn.CrossEntropyLoss(reduction="none")(y_hat, y)
             return loss
         
         # calculate the hessian
         hessian_mat = hessian(model_with_loss, x)
         # save the hessian
-        hessian_mat_dict[lbl] = hessian_mat.clone().detach()
+        hessian_mat_dict[lbl] = hessian_mat.squeeze().clone().detach()
     return hessian_mat_dict
 
 
@@ -241,10 +243,6 @@ def add_args() -> argparse.Namespace:
                         help='the path of pretrained model.')
     parser.add_argument("--dataset", default="mnist", type=str,
                         help='the dataset name.')
-    parser.add_argument("--pos", default=1, type=int,
-                        help="the postive label in two-cat classificiation problem")
-    parser.add_argument("--neg", default=0, type=int,
-                        help="the postive label in two-cat classificiation problem")
     parser.add_argument("--model", default="AlexNet", type=str,
                         help='the model name.')
     parser.add_argument("--bs", default=128, type=int,
@@ -258,7 +256,6 @@ def add_args() -> argparse.Namespace:
                          MOMENT,
                          f"seed{args.seed}",
                          f"{args.dataset}",
-                         f"{args.pos}And{args.neg}",
                          f"{args.model}",
                          f"bs{args.bs}"])
     args.save_path = os.path.join(os.path.dirname(args.resume_path), exp_name)
@@ -301,7 +298,7 @@ def main():
 
     # calculate the hessian
     logger.info("#########calculating hessian....")
-    hessian_mat_dict = get_hessian(model, args.device)
+    hessian_mat_dict = get_hessian(model, args.device, testset)
 
     # test
     logger.info("#########testing....")
@@ -310,8 +307,6 @@ def main():
          model = model,
          testset = testset,
          hessian_mat_dict = hessian_mat_dict,
-         pos_lbl = args.pos,
-         neg_lbl = args.neg,
          batch_size = args.bs,
          seed = args.seed)
 
