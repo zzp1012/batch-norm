@@ -6,7 +6,8 @@ from typing import Tuple
 # import internal libs
 from utils import get_logger
 
-def load(root: str = "../data") -> Tuple[Dataset, Dataset]:
+def load(model_name = "LeNet5",
+         root: str = "../data") -> Tuple[Dataset, Dataset]:
     """load the mnist dataset.
     Args:
         root (str): the root path of the dataset.
@@ -18,7 +19,7 @@ def load(root: str = "../data") -> Tuple[Dataset, Dataset]:
 
     # prepare the transform
     transform=transforms.Compose([
-        transforms.Resize(32),
+        transforms.Resize(32) if model_name == "AlexNet" else transforms.Resize(28),
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,))
     ])

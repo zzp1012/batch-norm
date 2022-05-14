@@ -89,7 +89,7 @@ def main():
 
     # prepare the dataset
     logger.info("#########preparing dataset....")
-    trainset, testset = prepare_dataset(args.dataset)
+    trainset, testset = prepare_dataset(args.dataset, args.model)
 
     # prepare the model
     logger.info("#########preparing model....")

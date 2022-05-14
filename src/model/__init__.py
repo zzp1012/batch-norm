@@ -20,6 +20,9 @@ def prepare_model(model_name: str,
         if model_name == "AlexNet":
             from model.alexnet import AlexNet
             model = AlexNet()
+        elif model_name == "LeNet5":
+            from model.lenet5 import LeNet5
+            model = LeNet5()
         else:
             raise ValueError(f"unknown model name: {model_name} for dataset {dataset}")
     else:
