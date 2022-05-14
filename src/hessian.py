@@ -111,7 +111,7 @@ def test(save_path: str,
         label = labels.unique().item()
         logger.info(f"label: {label}")
         
-        model.eval()
+        model.train()
         with torch.no_grad():
             # set the outputs
             outputs = model(inputs) # (N, 1)
