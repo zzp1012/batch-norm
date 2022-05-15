@@ -10,3 +10,12 @@ MOMENT = str(datetime.now().hour).zfill(2)+str(datetime.now().minute).zfill(2) +
 
 # current path
 SRC_PATH = os.path.dirname(os.path.abspath(__file__))
+
+# eps in BN
+EPS = 1e-20
+
+# repeat times
+REPEAT_NUM = 10
+
+# sampled dimensions
+SAMPLE_DIM = 100

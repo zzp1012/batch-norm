@@ -15,7 +15,7 @@ from data import prepare_dataset
 from model import prepare_model
 from utils import set_logger, get_logger, set_seed, set_device, \
     log_settings, save_current_src
-from config import DATE, MOMENT, SRC_PATH
+from config import DATE, MOMENT, SRC_PATH, EPS, REPEAT_NUM, SAMPLE_DIM
 
 
 def create_batches(dataset: Dataset,
@@ -39,7 +39,7 @@ def create_batches(dataset: Dataset,
     logger.debug(f"inputs shape: {inputs.shape}; labels shape: {labels.shape}")
     # create the indices
     batch_indices = []
-    repeat_num = 100
+    repeat_num = REPEAT_NUM 
     for itr in range(1, repeat_num+1):
         for i, label in enumerate(range(len(dataset.classes))):
             indices = np.where(labels == label)[0]
@@ -89,20 +89,15 @@ def test(save_path: str,
         assert len(input) == 1, "the input should be a tuple containing one tensor"
         features.append(input[0])
     forward_handle = model.bn.register_forward_hook(hook)
-    
-    # initialize the final res dict
-    loss_dict = {
-        "L_d_linear": [],
-        "L_d_none": [],
-        "Y_linear_dot_y_d_norm": [],
-        "Y_none_dot_y_d_norm": [],
-        "Y_linear_norm": [],
-        "Y_none_norm": [],
-        "H_off_dot_Y_linear_norm": [],
-        "H_off_dot_Y_none_norm": [],
-    }  
+
+    grads = []
+    def get_grads(module, grad_input, grad_output):
+        assert len(grad_output) == 1, f"the grad output length should be 1, but got {len(grad_output)}"
+        grads.append(grad_output[0].clone().detach())
+    backward_handle = model.before_bn.register_backward_hook(get_grads)
     
     # get the two loss terms
+    x_grad_lst = []
     for batch_idx, (inputs, labels) in enumerate(test_batches):
         logger.info(f"#####batch {batch_idx}")
         # set the inputs to device
@@ -112,80 +107,59 @@ def test(save_path: str,
         logger.info(f"label: {label}")
         
         model.train()
-        with torch.no_grad():
-            # set the outputs
-            outputs = model(inputs) # (N, 1)
-            print((outputs.max(1)[1] == labels).float().mean().item())
+        # set the outputs
+        outputs = model(inputs) # (N, 1)
+        print((outputs.max(1)[1] == labels).float().mean().item())
+        
+        # get the features
+        assert len(features) == 1, \
+            "the features should be a tuple containing one tensor"
+        feature = features[-1]
+        del features[-1]
             
-            # get the features
-            assert len(features) == 1, \
-                "the features should be a tuple containing one tensor"
-            feature = features[-1]
-            del features[-1]
-            
-            X = feature.T
-            D, N = X.shape
+        X = feature.T
+        D, N = X.shape
 
-            # get the Y
-            batch_mean = torch.mean(X, dim=-1, keepdim=True) # (D, 1)
-            batch_var = torch.var(X, dim=-1, unbiased=False, keepdim=True) # (D, 1)
-            Y = (X - batch_mean) / torch.sqrt(batch_var + 1e-5) # (D, N)
+        # get the Y
+        batch_mean = torch.mean(X, dim=-1, keepdim=True) # (D, 1)
+        batch_var = torch.var(X, dim=-1, unbiased=False, keepdim=True) # (D, 1)
+        Y = (X - batch_mean) / torch.sqrt(batch_var + EPS) # (D, N)
 
-            # remove the rows that are all 0
-            none_zero_rows = torch.where(torch.sum(Y**2, dim=-1) != 0)[0]
-            # record the list
-            L_d_linear_lst, L_d_none_lst, Y_linear_dot_y_d_norm_lst, Y_none_dot_y_d_norm_lst, \
-                Y_linear_norm_lst, Y_none_norm_lst, H_off_dot_Y_linear_norm_lst, H_off_dot_Y_none_norm_lst = [], [], [], [], [], [], [], []
-            for d in tqdm(none_zero_rows):
-                # calculate quantities
-                y_d = Y[d, :] # (N, )
-                H_off_d = hessian_mat_dict[label].fill_diagonal_(0)[d, :].to(device) # (D, )
-                A = torch.diag(torch.norm(Y, dim = -1, p = 2)) # (D, D)
-                lambda_d = torch.cosine_similarity(Y, y_d.repeat(D, 1)) # (D, )
-                
-                # get Y_linear and Y_none
-                Y_linear = torch.matmul(torch.matmul(A, lambda_d.reshape(D, 1)), y_d.reshape(1, N) / torch.norm(y_d, p=2)) # (D, N)
-                Y_none = Y - Y_linear
-                Y_none = Y_none - torch.mean(Y_none, dim=-1).unsqueeze(-1) # (D, )
+        # remove the rows that are all 0
+        none_zero_rows = torch.where(torch.sum(Y**2, dim=-1) != 0)[0][:SAMPLE_DIM]
+        for d in tqdm(none_zero_rows):
+            # calculate quantities
+            y_d = Y[d, :] # (N, )
+            H_off_d = hessian_mat_dict[label].fill_diagonal_(0)[d, :].detach().to(device) # (D, )
+            A = torch.diag(torch.norm(Y, dim = -1, p = 2)).detach() # (D, D)
+            lambda_d = torch.cosine_similarity(Y, y_d.repeat(D, 1)).detach() # (D, )
+            # get Y_linear and Y_none
+            Y_linear = torch.matmul(torch.matmul(A, lambda_d.reshape(D, 1)), y_d.reshape(1, N) / torch.norm(y_d, p=2)).detach() # (D, N)
+            # get the partial loss
+            Y_linear_dot_y_d = torch.matmul(Y_linear, y_d.reshape(N, 1)) # (D, 1)
+            # calculate the two loss
+            L_d_linear = torch.matmul(H_off_d.reshape(1, D), Y_linear_dot_y_d) # (1, 1)
 
-                # get the partial loss
-                Y_linear_dot_y_d = torch.matmul(Y_linear, y_d.reshape(N, 1)) # (D, 1)
-                Y_none_dot_y_d = torch.matmul(Y_none, y_d.reshape(N, 1)) # (D, 1)
+            # backward
+            model.zero_grad()
+            L_d_linear.backward(retain_graph=True)
 
-                # get the gradient actually
-                H_off_dot_Y_linear = torch.matmul(H_off_d.reshape(1, D), Y_linear) # (1, D)
-                H_off_dot_Y_none = torch.matmul(H_off_d.reshape(1, D), Y_none) # (1, D)
-                
-                # calculate the two loss
-                L_d_linear = torch.matmul(H_off_d.reshape(1, D), Y_linear_dot_y_d) # (1, 1)
-                L_d_none = torch.matmul(H_off_d.reshape(1, D), Y_none_dot_y_d) # (1, 1)
+            # get the grads
+            assert len(grads) == 1, \
+                "the grads should be a tuple containing one tensor"
+            grad = grads[-1]
+            del grads[-1]
 
-                # record the quantities
-                L_d_linear_lst.append(L_d_linear.item())
-                L_d_none_lst.append(L_d_none.item())
-                Y_linear_dot_y_d_norm_lst.append(torch.norm(Y_linear_dot_y_d, p=2).item())
-                Y_none_dot_y_d_norm_lst.append(torch.norm(Y_none_dot_y_d, p=2).item())
-                Y_linear_norm_lst.append(torch.norm(Y_linear, p="fro").item())
-                Y_none_norm_lst.append(torch.norm(Y_none, p="fro").item())
-                H_off_dot_Y_linear_norm_lst.append(torch.norm(H_off_dot_Y_linear, p="fro").item())
-                H_off_dot_Y_none_norm_lst.append(torch.norm(H_off_dot_Y_none, p="fro").item())
-
-            # save the results
-            loss_dict["L_d_linear"].extend(L_d_linear_lst)
-            loss_dict["L_d_none"].extend(L_d_none_lst)
-            loss_dict["Y_linear_dot_y_d_norm"].extend(Y_linear_dot_y_d_norm_lst)
-            loss_dict["Y_none_dot_y_d_norm"].extend(Y_none_dot_y_d_norm_lst)
-            loss_dict["Y_linear_norm"].extend(Y_linear_norm_lst)
-            loss_dict["Y_none_norm"].extend(Y_none_norm_lst)
-            loss_dict["H_off_dot_Y_linear_norm"].extend(H_off_dot_Y_linear_norm_lst)
-            loss_dict["H_off_dot_Y_none_norm"].extend(H_off_dot_Y_none_norm_lst)
+            # reocrd the grads
+            x_grad_lst.append(torch.norm(grad, p=2).item())
     
     # save the gradients
-    loss_df = pd.DataFrame.from_dict(loss_dict)
-    loss_df.to_csv(os.path.join(save_path, "loss.csv"), index = False)
+    x_grads = np.array(x_grad_lst)
+    np.save(os.path.join(save_path, "x_grads.npy"), x_grads)
     
     # remove the hook
     forward_handle.remove()
+    backward_handle.remove()
 
 
 def get_hessian(model: nn.Module,
@@ -210,7 +184,7 @@ def get_hessian(model: nn.Module,
     
     # calculate the hessian
     hessian_mat_dict = dict()
-    for lbl in range(len(dataset.classes)):
+    for lbl in tqdm(range(len(dataset.classes))):
         def model_with_loss(x):
             """the model with loss.
             """
