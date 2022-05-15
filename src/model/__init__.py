@@ -17,12 +17,12 @@ def prepare_model(model_name: str,
     logger = get_logger(__name__)
     logger.info(f"prepare the {model_name} model for dataset {dataset}")
     if dataset == "mnist":
-        if model_name == "AlexNet":
-            from model.alexnet import AlexNet
-            model = AlexNet()
-        elif model_name == "LeNet5":
-            from model.lenet5 import LeNet5
-            model = LeNet5()
+        if model_name.startswith("AlexNet"):
+            import model.alexnet as alexnet
+            model = alexnet.__dict__[model_name]()
+        elif model_name.startswith("LeNet5"):
+            import model.lenet5 as lenet5
+            model = lenet5.__dict__[model_name]()
         else:
             raise ValueError(f"unknown model name: {model_name} for dataset {dataset}")
     else:

@@ -19,7 +19,7 @@ def load(model_name = "LeNet5",
 
     # prepare the transform
     transform=transforms.Compose([
-        transforms.Resize(32) if model_name == "AlexNet" else transforms.Resize(28),
+        transforms.Resize(32) if model_name.startswith("AlexNet") else transforms.Resize(28),
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,))
     ])
