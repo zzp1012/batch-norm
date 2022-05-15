@@ -27,7 +27,7 @@ class AlexNet(nn.Module):
         )
         self.before_bn = nn.Sequential(
             nn.Dropout(inplace=False),
-            nn.Linear(256 * 6 * 6, 4096),
+            nn.Linear(256 * 2 * 2, 4096),
             nn.ReLU(inplace=True),
             nn.Dropout(inplace=False),
             nn.Linear(4096, 4096),
