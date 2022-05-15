@@ -20,9 +20,6 @@ def prepare_model(model_name: str,
         if model_name.startswith("AlexNet"):
             import model.alexnet as alexnet
             model = alexnet.__dict__[model_name]()
-        elif model_name.startswith("LeNet5"):
-            import model.lenet5 as lenet5
-            model = lenet5.__dict__[model_name]()
         else:
             raise ValueError(f"unknown model name: {model_name} for dataset {dataset}")
     else:
