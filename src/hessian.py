@@ -171,14 +171,14 @@ def test(save_path: str,
                 H_off_dot_Y_none_norm_lst.append(torch.norm(H_off_dot_Y_none, p="fro").item())
 
             # save the results
-            loss_dict["L_d_linear"].append(np.mean(L_d_linear_lst))
-            loss_dict["L_d_none"].append(np.mean(L_d_none_lst))
-            loss_dict["Y_linear_dot_y_d_norm"].append(np.mean(Y_linear_dot_y_d_norm_lst))
-            loss_dict["Y_none_dot_y_d_norm"].append(np.mean(Y_none_dot_y_d_norm_lst))
-            loss_dict["Y_linear_norm"].append(np.mean(Y_linear_norm_lst))
-            loss_dict["Y_none_norm"].append(np.mean(Y_none_norm_lst))
-            loss_dict["H_off_dot_Y_linear_norm"].append(np.mean(H_off_dot_Y_linear_norm_lst))
-            loss_dict["H_off_dot_Y_none_norm"].append(np.mean(H_off_dot_Y_none_norm_lst))
+            loss_dict["L_d_linear"].extend(L_d_linear_lst)
+            loss_dict["L_d_none"].extend(L_d_none_lst)
+            loss_dict["Y_linear_dot_y_d_norm"].extend(Y_linear_dot_y_d_norm_lst)
+            loss_dict["Y_none_dot_y_d_norm"].extend(Y_none_dot_y_d_norm_lst)
+            loss_dict["Y_linear_norm"].extend(Y_linear_norm_lst)
+            loss_dict["Y_none_norm"].extend(Y_none_norm_lst)
+            loss_dict["H_off_dot_Y_linear_norm"].extend(H_off_dot_Y_linear_norm_lst)
+            loss_dict["H_off_dot_Y_none_norm"].extend(H_off_dot_Y_none_norm_lst)
     
     # save the gradients
     loss_df = pd.DataFrame.from_dict(loss_dict)
