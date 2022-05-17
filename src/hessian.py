@@ -15,7 +15,7 @@ from data import prepare_dataset
 from model import prepare_model
 from utils import set_logger, get_logger, set_seed, set_device, \
     log_settings, save_current_src
-from config import DATE, MOMENT, SRC_PATH, EPS, REPEAT_NUM, SAMPLE_DIM
+from config import DATE, MOMENT, SRC_PATH, EPS, REPEAT_NUM
 
 
 def create_batches(dataset: Dataset,
@@ -126,7 +126,7 @@ def test(save_path: str,
         Y = (X - batch_mean) / torch.sqrt(batch_var + EPS) # (D, N)
 
         # remove the rows that are all 0
-        none_zero_rows = torch.where(torch.sum(Y**2, dim=-1) != 0)[0][:SAMPLE_DIM]
+        none_zero_rows = torch.where(torch.sum(Y**2, dim=-1) != 0)[0]
         for d in tqdm(none_zero_rows):
             # calculate quantities
             y_d = Y[d, :] # (N, )
