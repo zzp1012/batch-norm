@@ -100,6 +100,7 @@ def test(save_path: str,
         "Y_none_norm": [],
         "H_off_dot_Y_linear_norm": [],
         "H_off_dot_Y_none_norm": [],
+        "H_off_dot_Y_norm": [], 
     }  
     
     # get the two loss terms
@@ -135,7 +136,7 @@ def test(save_path: str,
             none_zero_rows = torch.where(torch.sum(Y**2, dim=-1) != 0)[0]
             # record the list
             L_d_linear_lst, L_d_none_lst, Y_linear_dot_y_d_norm_lst, Y_none_dot_y_d_norm_lst, \
-                Y_linear_norm_lst, Y_none_norm_lst, H_off_dot_Y_linear_norm_lst, H_off_dot_Y_none_norm_lst = [], [], [], [], [], [], [], []
+                Y_linear_norm_lst, Y_none_norm_lst, H_off_dot_Y_linear_norm_lst, H_off_dot_Y_none_norm_lst, H_off_dot_Y_norm_lst = [], [], [], [], [], [], [], [], []
             for d in tqdm(none_zero_rows):
                 # calculate quantities
                 y_d = Y[d, :] # (N, )
@@ -155,6 +156,8 @@ def test(save_path: str,
                 # get the gradient actually
                 H_off_dot_Y_linear = torch.matmul(H_off_d.reshape(1, D), Y_linear) # (1, D)
                 H_off_dot_Y_none = torch.matmul(H_off_d.reshape(1, D), Y_none) # (1, D)
+                H_off_dot_Y = torch.matmul(H_off_d.reshape(1, D), Y_linear + Y_none) # (1, D)
+                assert torch.allclose(H_off_dot_Y, (H_off_dot_Y_linear + H_off_dot_Y_none), atol = 1e-5)
                 
                 # calculate the two loss
                 L_d_linear = torch.matmul(H_off_d.reshape(1, D), Y_linear_dot_y_d) # (1, 1)
@@ -169,6 +172,7 @@ def test(save_path: str,
                 Y_none_norm_lst.append(torch.norm(Y_none, p="fro").item())
                 H_off_dot_Y_linear_norm_lst.append(torch.norm(H_off_dot_Y_linear, p="fro").item())
                 H_off_dot_Y_none_norm_lst.append(torch.norm(H_off_dot_Y_none, p="fro").item())
+                H_off_dot_Y_norm_lst.append(torch.norm(H_off_dot_Y, p="fro").item())
 
             # save the results
             loss_dict["L_d_linear"].extend(L_d_linear_lst)
@@ -179,6 +183,8 @@ def test(save_path: str,
             loss_dict["Y_none_norm"].extend(Y_none_norm_lst)
             loss_dict["H_off_dot_Y_linear_norm"].extend(H_off_dot_Y_linear_norm_lst)
             loss_dict["H_off_dot_Y_none_norm"].extend(H_off_dot_Y_none_norm_lst)
+            loss_dict["H_off_dot_Y_norm"].extend(H_off_dot_Y_norm_lst)
+
     
     # save the gradients
     loss_df = pd.DataFrame.from_dict(loss_dict)
