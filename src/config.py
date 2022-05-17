@@ -16,6 +16,3 @@ EPS = 1e-20
 
 # repeat times
 REPEAT_NUM = 10
-
-# sampled dimensions
-SAMPLE_DIM = 100
