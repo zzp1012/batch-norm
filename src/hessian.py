@@ -79,6 +79,7 @@ def test(save_path: str,
 
     # put the model to GPU or CPU
     model = model.to(device)
+    model = model.double()
     # create test batches
     test_batches = create_batches(testset, batch_size, seed)
     
@@ -98,36 +99,54 @@ def test(save_path: str,
     
     # get the two loss terms
     x_grad_lst = []
+    model.train()
     for batch_idx, (inputs, labels) in enumerate(test_batches):
         logger.info(f"#####batch {batch_idx}")
         # set the inputs to device
-        inputs, labels = inputs.to(device), labels.to(device)
+        inputs, labels = inputs.double().to(device), labels.to(device)
         assert len(labels.unique()) == 1, "the labels should be the same"
         label = labels.unique().item()
         logger.info(f"label: {label}")
-        
-        model.train()
-        # set the outputs
-        outputs = model(inputs) # (N, 1)
-        print((outputs.max(1)[1] == labels).float().mean().item())
-        
-        # get the features
-        assert len(features) == 1, \
-            "the features should be a tuple containing one tensor"
-        feature = features[-1]
-        del features[-1]
-            
-        X = feature.T
-        D, N = X.shape
 
-        # get the Y
-        batch_mean = torch.mean(X, dim=-1, keepdim=True) # (D, 1)
-        batch_var = torch.var(X, dim=-1, unbiased=False, keepdim=True) # (D, 1)
-        Y = (X - batch_mean) / torch.sqrt(batch_var + EPS) # (D, N)
+        with torch.no_grad():
+            # set the outputs
+            outputs = model(inputs) # (N, 1)
+            print((outputs.max(1)[1] == labels).float().mean().item())
+            
+            # get the features
+            assert len(features) == 1, \
+                "the features should be a tuple containing one tensor"
+            feature = features[-1]
+            del features[-1]
+                
+            X = feature.T
+            D, N = X.shape
+
+            # get the Y
+            batch_mean = torch.mean(X, dim=-1, keepdim=True) # (D, 1)
+            batch_var = torch.var(X, dim=-1, unbiased=False, keepdim=True) # (D, 1)
+            Y = (X - batch_mean) / torch.sqrt(batch_var + EPS) # (D, N)
 
         # remove the rows that are all 0
         none_zero_rows = torch.where(torch.sum(Y**2, dim=-1) != 0)[0]
         for d in tqdm(none_zero_rows):
+            # set the outputs
+            outputs = model(inputs) # (N, 1)
+            
+            # get the features
+            assert len(features) == 1, \
+                "the features should be a tuple containing one tensor"
+            feature = features[-1]
+            del features[-1]
+                
+            X = feature.T
+            D, N = X.shape
+
+            # get the Y
+            batch_mean = torch.mean(X, dim=-1, keepdim=True) # (D, 1)
+            batch_var = torch.var(X, dim=-1, unbiased=False, keepdim=True) # (D, 1)
+            Y = (X - batch_mean) / torch.sqrt(batch_var + EPS) # (D, N)
+            
             # calculate quantities
             y_d = Y[d, :] # (N, )
             H_off_d = hessian_mat_dict[label].fill_diagonal_(0)[d, :].detach().to(device) # (D, )
@@ -142,7 +161,7 @@ def test(save_path: str,
 
             # backward
             model.zero_grad()
-            L_d_linear.backward(retain_graph=True)
+            L_d_linear.backward()
 
             # get the grads
             assert len(grads) == 1, \
@@ -196,7 +215,7 @@ def get_hessian(model: nn.Module,
         # calculate the hessian
         hessian_mat = hessian(model_with_loss, x)
         # save the hessian
-        hessian_mat_dict[lbl] = hessian_mat.squeeze().clone().detach()
+        hessian_mat_dict[lbl] = hessian_mat.double().squeeze().clone().detach()
     return hessian_mat_dict
 
 
