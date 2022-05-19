@@ -170,7 +170,7 @@ def test(save_path: str,
             del grads[-1]
 
             # reocrd the grads
-            x_grad_lst.append(torch.norm(grad, p=2).item())
+            x_grad_lst.append(torch.norm(grad[:, d], p=2).item())
     
     # save the gradients
     x_grads = np.array(x_grad_lst)
